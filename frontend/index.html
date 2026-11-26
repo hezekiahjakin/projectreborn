@@ -14,10 +14,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v67">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v67">
-  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v67">
-  <link rel="modulepreload" href="app.js?v=20261126_v67">
+  <link rel="stylesheet" href="styles.css?v=20261126_v68">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v68">
+  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v68">
+  <link rel="modulepreload" href="app.js?v=20261126_v68">
 </head>
 <body class="theme-vanguard">
 
@@ -67,10 +67,6 @@
       <button class="nav-tab" type="button" data-tab="tab-loadout-builder">
         <span class="nav-icon" aria-hidden="true">🛠️</span>
         <span class="nav-title">Loadouts</span>
-      </button>
-      <button class="nav-tab" type="button" data-tab="tab-comms">
-        <span class="nav-icon" aria-hidden="true">📡</span>
-        <span class="nav-title">AI Chat</span>
       </button>
       <button class="nav-tab" type="button" data-tab="tab-vault">
         <span class="nav-icon" aria-hidden="true">🎯</span>
@@ -234,8 +230,9 @@
       </div>
     </section>
 
-    <!-- TAB 1: COMMS & AI INTERACTION -->
-    <section class="tab-pane" id="tab-comms">
+    <!-- ASK GHOST FLOATING OVERLAY (FULL AI CHAT & VOICE COMMS) -->
+    <div class="ghost-drawer-backdrop hidden" id="ghostDrawerBackdrop" aria-hidden="true"></div>
+    <section class="tab-pane ghost-comms-drawer" id="tab-comms" aria-label="Ask Ghost AI & Voice Comms">
       <div class="comms-layout">
         
         <!-- Tactical Construct Visualizer & HUD Card -->
@@ -261,6 +258,7 @@
             <div class="terminal-actions">
               <button type="button" class="btn-text-action btn-comms-stop hidden" id="btnCommsStopVoice" title="Stop R.E.B.O.R.N. voice playback">⏹ Stop Audio</button>
               <button class="btn-text-action" id="btnClearHistory" title="Clear chat history">Clear Screen</button>
+              <button type="button" class="btn-text-action btn-ghost-close" id="btnCloseGhostDrawer" title="Close Ask Ghost" aria-label="Close Ask Ghost">✕</button>
             </div>
           </div>
 
@@ -1987,7 +1985,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v67"></script>
-  <script type="module" src="app.js?v=20261126_v67"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v68"></script>
+  <script type="module" src="app.js?v=20261126_v68"></script>
 </body>
 </html>

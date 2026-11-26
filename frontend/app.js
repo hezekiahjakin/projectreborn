@@ -2061,7 +2061,55 @@ function promptSecurityClearance(action, subtitle, desc) {
   }
 }
 
+function openGhostCommsDrawer() {
+  const commsPane = document.getElementById('tab-comms');
+  const backdrop = document.getElementById('ghostDrawerBackdrop');
+  const fab = document.getElementById('rebornQuickFab');
+  if (!commsPane) return;
+  commsPane.classList.add('ghost-drawer-open');
+  if (backdrop) backdrop.classList.remove('hidden');
+  if (fab) {
+    fab.classList.add('is-open');
+    const lbl = fab.querySelector('.reborn-fab-label');
+    if (lbl) lbl.textContent = 'Close Ghost';
+  }
+  const messagesContainer = document.getElementById('messagesContainer');
+  if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  setTimeout(() => document.getElementById('chatInput')?.focus(), 80);
+}
+
+function closeGhostCommsDrawer() {
+  const commsPane = document.getElementById('tab-comms');
+  const backdrop = document.getElementById('ghostDrawerBackdrop');
+  const fab = document.getElementById('rebornQuickFab');
+  if (commsPane) commsPane.classList.remove('ghost-drawer-open');
+  if (backdrop) backdrop.classList.add('hidden');
+  if (fab) {
+    fab.classList.remove('is-open');
+    const lbl = fab.querySelector('.reborn-fab-label');
+    if (lbl) lbl.textContent = 'Ask Ghost';
+  }
+}
+
+function toggleGhostCommsDrawer() {
+  const commsPane = document.getElementById('tab-comms');
+  if (!commsPane) return;
+  sfx.playChirp();
+  if (commsPane.classList.contains('ghost-drawer-open')) {
+    closeGhostCommsDrawer();
+  } else {
+    openGhostCommsDrawer();
+  }
+}
+
 function switchTabDirect(tabId) {
+  if (tabId === 'tab-comms') {
+    sfx.playChirp();
+    openGhostCommsDrawer();
+    return;
+  }
+
+  closeGhostCommsDrawer();
   state.currentTab = tabId;
   sfx.playChirp();
 
@@ -2083,6 +2131,7 @@ function switchTabDirect(tabId) {
   }
 
   document.querySelectorAll('.tab-pane').forEach(pane => {
+    if (pane.id === 'tab-comms') return;
     pane.classList.toggle('active', pane.id === tabId);
   });
 
@@ -11692,6 +11741,24 @@ if (typeof window !== 'undefined') {
   window.__rebornVoice = voice;
   window.__rebornState = state;
   window.__openLoadoutFromBlueprint = (bp) => openLoadoutBuilderModal(bp, true);
+  window.__toggleGhostCommsDrawer = toggleGhostCommsDrawer;
+  window.__openGhostCommsDrawer = openGhostCommsDrawer;
+  window.__closeGhostCommsDrawer = closeGhostCommsDrawer;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('btnCloseGhostDrawer')?.addEventListener('click', () => {
+      sfx.playChirp();
+      closeGhostCommsDrawer();
+    });
+    document.getElementById('ghostDrawerBackdrop')?.addEventListener('click', () => {
+      closeGhostCommsDrawer();
+    });
+    document.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape' && document.getElementById('tab-comms')?.classList.contains('ghost-drawer-open')) {
+        closeGhostCommsDrawer();
+      }
+    });
+  });
 
   // Register PWA Service Worker for instant mobile app shell launches
   if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {

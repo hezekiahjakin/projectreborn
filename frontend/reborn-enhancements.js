@@ -77,7 +77,7 @@ function escHtml(str) {
 }
 
 /* ==========================================================================
-   1. FLOATING ALWAYS-ON R.E.B.O.R.N. QUICK-COMMS ORB & DRAWER
+   1. FLOATING ALWAYS-ON "ASK GHOST" BUTTON (OPENS FULL AI & VOICE COMMS)
    ========================================================================== */
 function mountFloatingRebornComms() {
   if (document.getElementById('rebornQuickFab')) return;
@@ -86,150 +86,17 @@ function mountFloatingRebornComms() {
   fab.id = 'rebornQuickFab';
   fab.type = 'button';
   fab.className = 'reborn-quick-fab';
-  fab.title = 'Open R.E.B.O.R.N. Tactical Ghost Relay';
+  fab.title = 'Ask Ghost — Open R.E.B.O.R.N. AI & Voice Comms';
   fab.innerHTML = `
     <span class="reborn-fab-core">❖</span>
-    <span class="reborn-fab-label">R.E.B.O.R.N.</span>
-  `;
-
-  const drawer = document.createElement('aside');
-  drawer.id = 'rebornQuickDrawer';
-  drawer.className = 'reborn-quick-drawer hidden';
-  drawer.innerHTML = `
-    <div class="reborn-drawer-header">
-      <div class="reborn-drawer-title">
-        <span class="reborn-fab-core small">❖</span>
-        <div>
-          <div class="reborn-drawer-name">R.E.B.O.R.N. // QUICK RELAY</div>
-          <div class="reborn-drawer-sub">FUTURISTIC GHOST ASSISTANT</div>
-        </div>
-      </div>
-      <div class="reborn-drawer-actions">
-        <button type="button" class="reborn-mini-btn" id="btnRebornDrawerStop" title="Stop Voice">🔇</button>
-        <button type="button" class="reborn-mini-btn" id="btnRebornDrawerClose" title="Close">✕</button>
-      </div>
-    </div>
-    <div class="reborn-drawer-log" id="rebornDrawerLog">
-      <div class="reborn-drawer-msg bot">
-        <div class="reborn-msg-meta">R.E.B.O.R.N. // TACTICAL GHOST RELAY</div>
-        <div>Uplink ready, Guardian. Ask for builds, god rolls, raid mechanics, or vault recommendations from any tab.</div>
-      </div>
-    </div>
-    <form class="reborn-drawer-form" id="rebornDrawerForm">
-      <button type="button" class="reborn-mini-btn" id="btnRebornDrawerMic" title="Voice Input">🎙️</button>
-      <input type="text" id="rebornDrawerInput" class="reborn-drawer-input" placeholder="Transmit to R.E.B.O.R.N..." autocomplete="off">
-      <button type="submit" class="reborn-send-btn" id="btnRebornDrawerSend">➔</button>
-    </form>
+    <span class="reborn-fab-label">Ask Ghost</span>
   `;
 
   document.body.appendChild(fab);
-  document.body.appendChild(drawer);
-
-  const logEl = drawer.querySelector('#rebornDrawerLog');
-  const formEl = drawer.querySelector('#rebornDrawerForm');
-  const inputEl = drawer.querySelector('#rebornDrawerInput');
-  const sendBtn = drawer.querySelector('#btnRebornDrawerSend');
-  const micBtn = drawer.querySelector('#btnRebornDrawerMic');
-  const quickHistory = [];
 
   fab.addEventListener('click', () => {
-    drawer.classList.toggle('hidden');
-    if (!drawer.classList.contains('hidden')) {
-      inputEl?.focus();
-    }
-  });
-
-  drawer.querySelector('#btnRebornDrawerClose')?.addEventListener('click', () => {
-    drawer.classList.add('hidden');
-  });
-
-  drawer.querySelector('#btnRebornDrawerStop')?.addEventListener('click', () => {
-    window.__rebornVoice?.stop?.();
-  });
-
-  // Voice mic input for quick drawer
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SpeechRec && micBtn) {
-    const rec = new SpeechRec();
-    rec.lang = 'en-US';
-    rec.interimResults = false;
-    micBtn.addEventListener('click', () => {
-      try {
-        rec.start();
-        micBtn.textContent = '🔴';
-      } catch (_) {}
-    });
-    rec.onresult = (ev) => {
-      const spoken = ev.results?.[0]?.[0]?.transcript || '';
-      if (inputEl && spoken) inputEl.value = spoken;
-      micBtn.textContent = '🎙️';
-    };
-    rec.onend = () => { micBtn.textContent = '🎙️'; };
-    rec.onerror = () => { micBtn.textContent = '🎙️'; };
-  }
-
-  formEl?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = (inputEl?.value || '').trim();
-    if (!text) return;
-    inputEl.value = '';
-    if (sendBtn) sendBtn.disabled = true;
-
-    const userBubble = document.createElement('div');
-    userBubble.className = 'reborn-drawer-msg user';
-    userBubble.innerHTML = `<div class="reborn-msg-meta">GUARDIAN</div><div>${escHtml(text)}</div>`;
-    logEl.appendChild(userBubble);
-
-    const pendingBubble = document.createElement('div');
-    pendingBubble.className = 'reborn-drawer-msg bot';
-    pendingBubble.innerHTML = `<div class="reborn-msg-meta">R.E.B.O.R.N. // PROCESSING</div><div>Calculating telemetry…</div>`;
-    logEl.appendChild(pendingBubble);
-    logEl.scrollTop = logEl.scrollHeight;
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: quickHistory.slice(-6) }),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data) {
-        throw new Error(data?.detail || `Relay error (HTTP ${res.status})`);
-      }
-      const reply = data.reply || 'Signal confirmed.';
-      quickHistory.push({ role: 'user', content: text }, { role: 'model', content: reply });
-
-      pendingBubble.innerHTML = `
-        <div class="reborn-msg-meta">
-          <span>R.E.B.O.R.N. // TACTICAL GHOST RELAY</span>
-          <button type="button" class="reborn-speak-chip" title="Hear R.E.B.O.R.N.">🔊 Speak</button>
-        </div>
-        <div class="reborn-msg-body">${escHtml(reply).replace(/\n/g, '<br>')}</div>
-      `;
-      pendingBubble.querySelector('.reborn-speak-chip')?.addEventListener('click', () => {
-        window.__rebornVoice?.speak?.(reply);
-      });
-
-      if (data.recommended_build && typeof window.__openLoadoutFromBlueprint === 'function') {
-        const buildBtn = document.createElement('button');
-        buildBtn.type = 'button';
-        buildBtn.className = 'reborn-blueprint-btn';
-        buildBtn.textContent = `🛠️ Assemble "${data.recommended_build.title || 'Build'}"`;
-        buildBtn.addEventListener('click', () => {
-          window.__openLoadoutFromBlueprint(data.recommended_build);
-          drawer.classList.add('hidden');
-        });
-        pendingBubble.appendChild(buildBtn);
-      }
-
-      if (window.__rebornState?.autoSpeak) {
-        window.__rebornVoice?.speak?.(reply);
-      }
-    } catch (err) {
-      pendingBubble.innerHTML = `<div class="reborn-msg-meta">RELAY ALERT</div><div style="color:#FCA5A5;">${escHtml(err.message)}</div>`;
-    } finally {
-      if (sendBtn) sendBtn.disabled = false;
-      logEl.scrollTop = logEl.scrollHeight;
+    if (typeof window.__toggleGhostCommsDrawer === 'function') {
+      window.__toggleGhostCommsDrawer();
     }
   });
 }

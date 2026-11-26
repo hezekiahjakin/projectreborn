@@ -234,7 +234,7 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   bottom: 0;
   z-index: 920;
   display: grid !important;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
   gap: 4px;
   width: 100% !important;
@@ -1504,4 +1504,122 @@ dialog.hud-modal .modal-footer {
   border-color: #10B981 !important;
   background: rgba(16, 185, 129, 0.24) !important;
   box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   11. ASK GHOST FLOATING FULL-FEATURED AI & VOICE COMMS OVERLAY
+   -------------------------------------------------------------------------- */
+.ghost-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 930;
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(4px);
+}
+
+#tab-comms.ghost-comms-drawer {
+  display: none !important;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open {
+  display: flex !important;
+  flex-direction: column;
+  position: fixed;
+  inset: 0 0 calc(var(--r-bottom-nav-h) + var(--r-safe-bottom)) 0;
+  z-index: 940;
+  padding: 8px;
+  background: rgba(7, 11, 21, 0.98);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: rebornFadeIn 0.18s ease-out;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px !important;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .construct-panel {
+  flex: 0 0 auto;
+  padding: 6px 10px !important;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .construct-canvas-wrapper {
+  height: 112px !important;
+  min-height: 112px !important;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open #ghostCanvas {
+  width: 112px !important;
+  height: 112px !important;
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .chat-terminal {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--r-radius-md);
+  border: 1px solid var(--r-border-bright);
+  background: rgba(10, 15, 28, 0.96);
+}
+
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .messages-container {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none !important;
+  overflow-y: auto;
+}
+
+.btn-ghost-close {
+  color: #E2E8F0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  border-radius: 8px;
+  padding: 4px 10px !important;
+  min-height: 30px !important;
+  font-weight: 700;
+}
+
+.reborn-quick-fab.is-open {
+  border-color: rgba(245, 166, 35, 0.75) !important;
+  box-shadow: 0 0 22px rgba(245, 166, 35, 0.32) !important;
+}
+
+@media (min-width: 768px) {
+  #tab-comms.ghost-comms-drawer.ghost-drawer-open {
+    inset: auto 20px 80px auto;
+    width: min(880px, calc(100vw - 40px));
+    height: min(82dvh, 740px);
+    padding: 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.72);
+    overflow: hidden;
+  }
+
+  #tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-layout {
+    flex-direction: row !important;
+    align-items: stretch;
+    height: 100%;
+  }
+
+  #tab-comms.ghost-comms-drawer.ghost-drawer-open .construct-panel {
+    flex: 0 0 230px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #tab-comms.ghost-comms-drawer.ghost-drawer-open .construct-canvas-wrapper {
+    height: 220px !important;
+  }
+
+  #tab-comms.ghost-comms-drawer.ghost-drawer-open #ghostCanvas {
+    width: 210px !important;
+    height: 210px !important;
+  }
 }
