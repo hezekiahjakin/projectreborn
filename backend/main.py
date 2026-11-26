@@ -4,6 +4,8 @@ import uuid
 import socket
 import io
 import time
+import hashlib
+import threading
 import base64
 import hmac
 import struct
@@ -118,18 +120,72 @@ DEFAULT_CONFIG = {
     "firebase_measurement_id": "G-V17Y87T532"
 }
 
+_json_cache_lock = threading.RLock()
+_json_mem_cache: Dict[str, tuple] = {}
+_endpoint_bytes_cache: Dict[str, bytes] = {}
+
+
 def load_json(path: str, default: Any) -> Any:
-    if os.path.exists(path):
+    abspath = os.path.abspath(path)
+    if os.path.exists(abspath):
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            st = os.stat(abspath)
+            sig = (st.st_mtime_ns, st.st_size)
+            with _json_cache_lock:
+                hit = _json_mem_cache.get(abspath)
+                if hit and hit[0] == sig:
+                    val = hit[1]
+                    if isinstance(val, list):
+                        return list(val)
+                    if isinstance(val, dict):
+                        return dict(val)
+                    return val
+            with open(abspath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            with _json_cache_lock:
+                _json_mem_cache[abspath] = (sig, data)
+            if isinstance(data, list):
+                return list(data)
+            if isinstance(data, dict):
+                return dict(data)
+            return data
         except Exception:
             return default
     return default
 
+
 def save_json(path: str, data: Any):
-    with open(path, "w", encoding="utf-8") as f:
+    abspath = os.path.abspath(path)
+    with open(abspath, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+    try:
+        st = os.stat(abspath)
+        sig = (st.st_mtime_ns, st.st_size)
+        with _json_cache_lock:
+            _json_mem_cache[abspath] = (sig, data)
+            _endpoint_bytes_cache.clear()
+    except Exception:
+        with _json_cache_lock:
+            _json_mem_cache.pop(abspath, None)
+            _endpoint_bytes_cache.clear()
+
+
+def _cached_json_response(cache_key: str, builder_fn, request: Optional[Request] = None) -> Response:
+    with _json_cache_lock:
+        entry = _endpoint_bytes_cache.get(cache_key)
+    if entry is None:
+        payload = builder_fn()
+        raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        etag = f'"{hashlib.md5(raw).hexdigest()}"'
+        entry = (raw, etag)
+        with _json_cache_lock:
+            _endpoint_bytes_cache[cache_key] = entry
+    else:
+        raw, etag = entry
+    headers = {"ETag": etag, "Cache-Control": "no-cache"}
+    if request is not None and request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=raw, media_type="application/json", headers=headers)
 
 def get_config() -> dict:
     cfg = load_json(CONFIG_PATH, {})
@@ -226,7 +282,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+@app.middleware("http")
+async def _perf_cache_headers(request: Request, call_next):
+    resp = await call_next(request)
+    if request.method == "GET" and resp.status_code == 200 and "cache-control" not in resp.headers:
+        path = request.url.path
+        if not path.startswith("/api/") and "v" in request.query_params:
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif path.startswith("/sfx/") or path.startswith("/icon-") or path == "/manifest.json":
+            resp.headers["Cache-Control"] = "public, max-age=604800"
+    return resp
 
 class ChatRequest(BaseModel):
     message: str
@@ -691,7 +759,7 @@ def sync_to_firebase(endpoint: str, data: Any, auth_token: str = "") -> dict:
         target_url += f"?auth={auth_token}"
     
     try:
-        r = requests.put(target_url, json=data, timeout=8)
+        r = _http.put(target_url, json=data, timeout=8)
         if r.status_code == 200:
             return {"success": True, "message": "Synced to Firebase successfully!", "status": 200}
         elif r.status_code == 401:
@@ -714,7 +782,7 @@ def fetch_from_firebase(endpoint: str, auth_token: str = "") -> dict:
         target_url += f"?auth={auth_token}"
     
     try:
-        r = requests.get(target_url, timeout=8)
+        r = _http.get(target_url, timeout=8)
         if r.status_code == 200:
             return {"success": True, "data": r.json(), "status": 200}
         elif r.status_code == 401:
@@ -1340,6 +1408,8 @@ def get_compendium_status_endpoint():
 async def post_compendium_sync_endpoint():
     try:
         db = await run_in_threadpool(sync_compendium_from_google_sheet)
+        with _json_cache_lock:
+            _endpoint_bytes_cache.clear()
         return {
             "status": "success",
             "synced_at": db.get("meta", {}).get("synced_at", ""),
@@ -1348,15 +1418,19 @@ async def post_compendium_sync_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to sync Compendium sheet: {e}")
 
-@app.get("/api/wiki")
-def get_wiki_endpoint():
+def _build_wiki_payload() -> dict:
     starter = load_json(STARTER_WIKI_PATH, []) + get_compendium_wiki_entries()
     user_data = load_json(USER_WIKI_PATH, [])
     return {
         "starter": starter,
         "user": user_data,
-        "total": len(starter) + len(user_data)
+        "total": len(starter) + len(user_data),
     }
+
+
+@app.get("/api/wiki")
+def get_wiki_endpoint(request: Request):
+    return _cached_json_response("wiki", _build_wiki_payload, request)
 
 @app.post("/api/wiki")
 def add_wiki_endpoint(item: WikiItem, background_tasks: BackgroundTasks):
@@ -1498,7 +1572,7 @@ def _fetch_youtube_video_context(video_id: str) -> Dict[str, Any]:
 
     # 1. Fetch oEmbed metadata for reliable title + creator name
     try:
-        oe_resp = requests.get(
+        oe_resp = _http.get(
             "https://www.youtube.com/oembed",
             params={"url": watch_url, "format": "json"},
             timeout=10,
@@ -1516,7 +1590,7 @@ def _fetch_youtube_video_context(video_id: str) -> Dict[str, Any]:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
             "Accept-Language": "en-US,en;q=0.9",
         }
-        page_resp = requests.get(watch_url, headers=headers, timeout=12)
+        page_resp = _http.get(watch_url, headers=headers, timeout=12)
         if page_resp.status_code == 200:
             html_text = page_resp.text
             if not title:
@@ -1541,7 +1615,7 @@ def _fetch_youtube_video_context(video_id: str) -> Dict[str, Any]:
                     chosen = tracks[0]
 
                 if chosen and chosen.get("baseUrl"):
-                    cap_resp = requests.get(chosen["baseUrl"], headers=headers, timeout=12)
+                    cap_resp = _http.get(chosen["baseUrl"], headers=headers, timeout=12)
                     if cap_resp.status_code == 200 and cap_resp.text.strip().startswith("<"):
                         root = ET.fromstring(cap_resp.text)
                         for node in root.findall(".//text"):
@@ -1626,7 +1700,7 @@ def _generate_guide_from_youtube(video_ctx: Dict[str, Any], category: str) -> Di
                 },
             }
             try:
-                resp = requests.post(url, json=payload, timeout=45)
+                resp = _http.post(url, json=payload, timeout=45)
                 if resp.status_code == 200:
                     data = resp.json()
                     cands = data.get("candidates", [])
@@ -1722,10 +1796,13 @@ async def import_youtube_wiki_guide(body: YoutubeWikiImportRequest, background_t
 
     return res_payload
 
+def _build_builds_payload() -> dict:
+    return {"builds": load_json(BUILDS_PATH, [])}
+
+
 @app.get("/api/builds")
-def get_builds_endpoint():
-    builds = load_json(BUILDS_PATH, [])
-    return {"builds": builds}
+def get_builds_endpoint(request: Request):
+    return _cached_json_response("builds", _build_builds_payload, request)
 
 @app.post("/api/builds")
 def save_build_endpoint(build: BuildItem, background_tasks: BackgroundTasks):
@@ -1771,10 +1848,13 @@ def delete_build_endpoint(build_id: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(sync_to_firebase, "reborn/saved_builds", builds, cfg.get("firebase_auth_token", ""))
     return {"status": "deleted", "id": build_id}
 
+def _build_godrolls_payload() -> dict:
+    return {"godrolls": get_all_god_rolls()}
+
+
 @app.get("/api/godrolls")
-def get_godrolls_endpoint():
-    rolls = get_all_god_rolls()
-    return {"godrolls": rolls}
+def get_godrolls_endpoint(request: Request):
+    return _cached_json_response("godrolls", _build_godrolls_payload, request)
 
 @app.post("/api/godrolls")
 def save_godroll_endpoint(item: GodRollItem, background_tasks: BackgroundTasks):
@@ -2760,11 +2840,12 @@ async def bungie_friend_action_endpoint(body: BungieFriendActionRequest, req: Re
 
 @app.on_event("startup")
 def _warmup_caches_on_startup():
-    """Preload Compendium, Wiki, and God Rolls into memory at boot so first requests are instant."""
+    """Preload Compendium, Wiki, God Rolls, Builds, and pre-serialized JSON responses into RAM."""
     try:
         get_compendium_db()
-        get_all_wiki_data()
-        get_all_god_rolls()
+        _cached_json_response("wiki", _build_wiki_payload)
+        _cached_json_response("godrolls", _build_godrolls_payload)
+        _cached_json_response("builds", _build_builds_payload)
     except Exception:
         pass
 
