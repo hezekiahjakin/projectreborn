@@ -2261,10 +2261,81 @@ function renderInventoryHeaderAndSwitcher() {
   if (!switcher) return;
   switcher.innerHTML = '';
 
+  const mobilePills = document.getElementById('charMobilePills');
+  const charsList = data.characters || [];
+  const vCount = data.vault?.gearCount ?? 0;
+  const vTotal = data.vault?.count ?? vCount;
+  const vCap = data.vault?.capacity ?? 1300;
+
+  if (mobilePills) {
+    mobilePills.innerHTML = '';
+    charsList.forEach(ch => {
+      const isSelected = state.activeInventoryView === ch.characterId;
+      const pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = `char-mobile-pill ${isSelected ? 'active' : ''}`;
+      pill.setAttribute('role', 'tab');
+      pill.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+      pill.innerHTML = `<span class="cmp-icon" aria-hidden="true">${classGlyph(ch.className)}</span><span class="cmp-label">${escapeHtml(ch.className)}</span>`;
+      pill.addEventListener('click', () => {
+        if (state.activeInventoryView === ch.characterId) return;
+        sfx.playCharacterSelect();
+        state.activeInventoryView = ch.characterId;
+        renderInventoryHeaderAndSwitcher();
+        renderInventoryStage();
+      });
+      mobilePills.appendChild(pill);
+    });
+    const isVaultSelected = state.activeInventoryView === 'vault';
+    const vaultPill = document.createElement('button');
+    vaultPill.type = 'button';
+    vaultPill.className = `char-mobile-pill ${isVaultSelected ? 'active' : ''}`;
+    vaultPill.setAttribute('role', 'tab');
+    vaultPill.setAttribute('aria-selected', isVaultSelected ? 'true' : 'false');
+    vaultPill.innerHTML = `<span class="cmp-icon" aria-hidden="true">🏛️</span><span class="cmp-label">Vault</span>`;
+    vaultPill.addEventListener('click', () => {
+      if (state.activeInventoryView === 'vault') return;
+      sfx.playChirp();
+      state.activeInventoryView = 'vault';
+      renderInventoryHeaderAndSwitcher();
+      renderInventoryStage();
+    });
+    mobilePills.appendChild(vaultPill);
+  }
+
+  // Enable clean horizontal swipe between Characters + Vault on mobile touchscreens
+  if (!switcher.dataset.swipeBound) {
+    switcher.dataset.swipeBound = '1';
+    let touchStartX = 0;
+    let touchStartY = 0;
+    switcher.addEventListener('touchstart', (ev) => {
+      if (ev.touches.length !== 1) return;
+      touchStartX = ev.touches[0].clientX;
+      touchStartY = ev.touches[0].clientY;
+    }, { passive: true });
+    switcher.addEventListener('touchend', (ev) => {
+      if (ev.changedTouches.length !== 1 || window.innerWidth >= 768) return;
+      const dx = ev.changedTouches[0].clientX - touchStartX;
+      const dy = ev.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) < 52 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+      const order = [...(state.bungieData?.characters || []).map(c => c.characterId), 'vault'];
+      const curIdx = order.indexOf(state.activeInventoryView);
+      if (curIdx < 0 || order.length < 2) return;
+      const nextIdx = dx < 0 ? (curIdx + 1) % order.length : (curIdx - 1 + order.length) % order.length;
+      const nextView = order[nextIdx];
+      if (nextView === 'vault') sfx.playChirp();
+      else sfx.playCharacterSelect();
+      state.activeInventoryView = nextView;
+      renderInventoryHeaderAndSwitcher();
+      renderInventoryStage();
+    }, { passive: true });
+  }
+
   // 1. Character Columns: Character Emblem Banner + Saved Loadouts Directly Underneath
-  (data.characters || []).forEach(ch => {
+  charsList.forEach(ch => {
+    const isCharActive = state.activeInventoryView === ch.characterId;
     const colWrap = document.createElement('div');
-    colWrap.className = 'switcher-char-col';
+    colWrap.className = `switcher-char-col ${isCharActive ? 'is-selected-view' : ''}`;
 
     const cardWrap = document.createElement('div');
     cardWrap.className = 'switcher-card-wrap';
@@ -2408,12 +2479,10 @@ function renderInventoryHeaderAndSwitcher() {
   });
 
   // 2. Vault Card
+  const isVaultActive = state.activeInventoryView === 'vault';
   const vaultBtn = document.createElement('button');
   vaultBtn.type = 'button';
-  vaultBtn.className = `switcher-card vault-card ${state.activeInventoryView === 'vault' ? 'active' : ''}`;
-  const vCount = data.vault?.gearCount ?? 0;
-  const vTotal = data.vault?.count ?? vCount;
-  const vCap = data.vault?.capacity ?? 1300;
+  vaultBtn.className = `switcher-card vault-card ${isVaultActive ? 'active is-selected-view' : ''}`;
   vaultBtn.innerHTML = `
     <div class="switcher-info">
       <span class="switcher-class">🏛️ THE VAULT</span>

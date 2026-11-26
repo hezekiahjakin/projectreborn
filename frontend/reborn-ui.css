@@ -456,15 +456,45 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
 .wiki-header-bar,
 .vault-header-bar,
 .friends-header-bar,
-.inv-account-row,
-.lb-header-row {
+.inv-account-row {
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
-  gap: 10px !important;
+  gap: 8px !important;
 }
 
-.inv-account-actions,
+.inv-guardian-identity {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inv-guardian-identity .btn-disconnect-bungie {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-height: 30px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  border-radius: 999px !important;
+  opacity: 0.85;
+}
+
+.inv-account-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+}
+
+.inv-account-actions > button {
+  min-height: 38px !important;
+  padding: 6px 8px !important;
+  font-size: 11.5px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .wiki-header-actions,
 .vault-header-actions,
 .lb-action-bar {
@@ -473,7 +503,6 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   gap: 8px !important;
 }
 
-.inv-account-actions > button,
 .wiki-header-actions > button,
 .lb-action-bar > button {
   flex: 1 1 auto;
@@ -496,18 +525,39 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
 }
 
 .wiki-filter-bar::-webkit-scrollbar,
+.godrolls-filter-bar::-webkit-scrollbar,
 .slot-filter-group::-webkit-scrollbar,
 .friends-filter-bar::-webkit-scrollbar,
+.inv-filter-pills::-webkit-scrollbar,
 .lb-preset-row::-webkit-scrollbar {
   display: none;
 }
 
 .wiki-filter-bar > button,
+.godrolls-filter-bar > button,
 .slot-filter-group > button,
 .friends-filter-bar > button,
+.inv-filter-pills > button,
 .lb-preset-row > button {
   flex: 0 0 auto;
   white-space: nowrap;
+  min-height: 36px !important;
+  padding: 6px 12px !important;
+}
+
+.inv-weapon-dropdowns {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.inv-weapon-dropdowns .inv-select-dropdown {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px !important;
+  padding: 0 8px;
+  text-overflow: ellipsis;
 }
 
 /* Responsive Card Grids: 1-col on Phone */
@@ -523,20 +573,103 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   gap: 12px !important;
 }
 
-/* Character & Vault Switcher: horizontal swipe strip on mobile */
-.char-vault-switcher {
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  overflow-x: auto !important;
-  gap: 10px !important;
-  padding-bottom: 6px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
+/* Mobile 1-at-a-Time Character & Vault Segmented Switcher */
+.char-mobile-pills {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
 }
 
-.char-vault-switcher > * {
-  flex: 0 0 265px;
-  scroll-snap-align: start;
+.char-mobile-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 40px !important;
+  min-width: 0;
+  padding: 6px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.72);
+  color: var(--r-text-muted);
+  font-family: var(--r-font-tactical);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.char-mobile-pill .cmp-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.char-mobile-pill.active,
+.char-mobile-pill[aria-selected="true"] {
+  background: rgba(245, 166, 35, 0.16);
+  border-color: rgba(245, 166, 35, 0.7);
+  color: #FEF08A;
+}
+
+.char-mobile-pill[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px 0;
+  border-block-end: 2px solid #F59E0B;
+}
+
+/* Show strictly 1 Character / Vault card at a time on mobile (< 768px) */
+.char-vault-switcher {
+  display: block !important;
+  overflow: visible !important;
+  padding-bottom: 0 !important;
+}
+
+.char-vault-switcher > *:not(.is-selected-view) {
+  display: none !important;
+}
+
+.char-vault-switcher > .is-selected-view {
+  width: 100% !important;
+}
+
+.switcher-card-wrap {
+  gap: 6px !important;
+}
+
+.switcher-card {
+  min-height: 68px;
+  padding: 10px 12px 10px 64px !important;
+}
+
+.switcher-card.vault-card {
+  padding-left: 14px !important;
+}
+
+.switcher-info {
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.switcher-class {
+  font-size: 15px !important;
+  white-space: nowrap;
+}
+
+.switcher-light {
+  font-size: 17px !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-switcher-emblem {
+  padding: 0 10px !important;
+  min-height: 44px;
 }
 
 /* AI Chat Mobile-First Layout */
@@ -745,10 +878,52 @@ dialog.hud-modal .modal-footer {
     justify-content: space-between !important;
   }
 
+  .inv-guardian-identity {
+    flex-wrap: nowrap;
+  }
+
+  .inv-guardian-identity .btn-disconnect-bungie {
+    margin-left: 6px;
+  }
+
+  .inv-account-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+  }
+
   .inv-account-actions > button,
   .wiki-header-actions > button,
   .lb-action-bar > button {
     flex: 0 0 auto;
+    min-height: 38px !important;
+    padding: 6px 12px !important;
+  }
+
+  .char-mobile-pills {
+    display: none !important;
+  }
+
+  .char-vault-switcher {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .char-vault-switcher > * {
+    display: flex !important;
+  }
+
+  .char-vault-switcher > .vault-card {
+    display: flex !important;
+  }
+
+  .inv-weapon-dropdowns {
+    display: flex !important;
+    width: auto !important;
+  }
+
+  .inv-weapon-dropdowns .inv-select-dropdown {
+    width: auto;
   }
 
   .wiki-filter-bar,
