@@ -501,53 +501,76 @@ class RebornAudioSpeechEngine {
     const gg = this._glitchGate.gain;
     times.forEach((rel) => {
       const at = startAt + rel;
-      const sliceLen = 0.07;
-      const sliceStart = Math.max(0, rel - 0.05);
-      // Duck original voice
+      const sliceLen = 0.11;
+      const repeats = 3;
+      const sliceStart = Math.max(0, rel - 0.08);
+      const glitchSpan = sliceLen * repeats;
+      // Duck original voice for the full stutter span
       gg.setValueAtTime(1.0, at);
-      gg.linearRampToValueAtTime(0.05, at + 0.004);
-      gg.setValueAtTime(0.05, at + sliceLen * 2);
-      gg.linearRampToValueAtTime(1.0, at + sliceLen * 2 + 0.01);
+      gg.linearRampToValueAtTime(0.03, at + 0.004);
+      gg.setValueAtTime(0.03, at + glitchSpan);
+      gg.linearRampToValueAtTime(1.0, at + glitchSpan + 0.015);
       // Stutter repeats (bypass gate so they are heard while voice is ducked)
-      for (let r = 0; r < 2; r++) {
+      for (let r = 0; r < repeats; r++) {
         try {
           const s = ctx.createBufferSource();
           s.buffer = audioBuffer;
-          s.playbackRate.value = r === 0 ? 1.0 : 1.07;
+          s.playbackRate.value = [1.0, 1.09, 0.93][r] || 1.0;
           const sg = ctx.createGain();
-          sg.gain.value = 0.85;
+          sg.gain.value = 1.15;
           s.connect(sg);
           sg.connect(this._ghostFxInput);
           s.start(at + r * sliceLen, sliceStart, sliceLen);
           this._activeGlitchSources.push(s);
         } catch (_) {}
       }
-      // Static crackle burst
+      // Static crackle burst (louder + spans the whole stutter)
       try {
-        const len = Math.floor(ctx.sampleRate * 0.05);
+        const noiseDur = glitchSpan + 0.04;
+        const len = Math.floor(ctx.sampleRate * noiseDur);
         const nb = ctx.createBuffer(1, len, ctx.sampleRate);
         const ch = nb.getChannelData(0);
-        for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (Math.random() > 0.7 ? 1 : 0.25) * (1 - i / len);
+        for (let i = 0; i < len; i++) {
+          const env = i < len * 0.85 ? 1 : (1 - (i - len * 0.85) / (len * 0.15));
+          ch[i] = (Math.random() * 2 - 1) * (Math.random() > 0.65 ? 1 : 0.3) * env;
+        }
         const ns = ctx.createBufferSource();
         ns.buffer = nb;
         const bp = ctx.createBiquadFilter();
         bp.type = 'bandpass';
-        bp.frequency.value = 3200;
-        bp.Q.value = 1.6;
+        bp.frequency.value = 2900;
+        bp.Q.value = 1.2;
         const ng = ctx.createGain();
-        ng.gain.value = 0.09;
+        ng.gain.value = 0.26;
         ns.connect(bp);
         bp.connect(ng);
         ng.connect(this._analyser);
         ns.start(at);
         this._activeGlitchSources.push(ns);
       } catch (_) {}
+      // Digital telemetry blip on top of each glitch
+      try {
+        const osc = ctx.createOscillator();
+        const og = ctx.createGain();
+        osc.type = 'square';
+        const f = 1400 + Math.random() * 900;
+        osc.frequency.setValueAtTime(f, at);
+        osc.frequency.setValueAtTime(f * 1.4, at + 0.05);
+        osc.frequency.setValueAtTime(f * 0.7, at + 0.1);
+        og.gain.setValueAtTime(0.05, at);
+        og.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+        osc.connect(og);
+        og.connect(this._analyser);
+        osc.start(at);
+        osc.stop(at + 0.17);
+        this._activeGlitchSources.push(osc);
+      } catch (_) {}
       // Sync 3D Ghost twitch
       const delayMs = Math.max(0, (at - ctx.currentTime) * 1000);
       setTimeout(() => {
         if (genId !== this._genId) return;
         state.ghostGlitchPulse = 1;
-        setTimeout(() => { state.ghostGlitchPulse = 0; }, 150);
+        setTimeout(() => { state.ghostGlitchPulse = 0; }, Math.round(glitchSpan * 1000));
       }, delayMs);
     });
   }
@@ -584,48 +607,49 @@ class RebornAudioSpeechEngine {
 
       if (mode === true || mode === 'open') {
         // Destiny Ghost Crystalline Wake Trill + Comms Squelch
-        this._playNoiseSquelch(ctx, 0.024, 0.024, 2900);
+        this._playNoiseSquelch(ctx, 0.07, 0.075, 2900);
         const freqs = [680, 1020, 1480];
         freqs.forEach((f, idx) => {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.type = idx === 2 ? 'sine' : 'triangle';
-          const t0 = now + idx * 0.032;
+          const t0 = now + idx * 0.045;
           osc.frequency.setValueAtTime(f, t0);
-          osc.frequency.exponentialRampToValueAtTime(f * 1.12, t0 + 0.035);
-          g.gain.setValueAtTime(0.032, t0);
-          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+          osc.frequency.exponentialRampToValueAtTime(f * 1.12, t0 + 0.05);
+          g.gain.setValueAtTime(0.06, t0);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.085);
           osc.connect(g);
           g.connect(ctx.destination);
           osc.start(t0);
-          osc.stop(t0 + 0.055);
+          osc.stop(t0 + 0.09);
         });
       } else if (mode === 'glitch') {
-        // Subtle Mid-Speech Comms Telemetry Blip + Micro-Stutter
+        // Mid-Speech Comms Telemetry Blip + Stutter
         state.ghostGlitchPulse = 1.0;
-        setTimeout(() => { state.ghostGlitchPulse = 0; }, 160);
-        this._playNoiseSquelch(ctx, 0.018, 0.016, 3400);
+        setTimeout(() => { state.ghostGlitchPulse = 0; }, 260);
+        this._playNoiseSquelch(ctx, 0.14, 0.085, 3200);
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
-        osc.type = 'sine';
+        osc.type = 'square';
         const f1 = 1650 + Math.random() * 1100;
         osc.frequency.setValueAtTime(f1, now);
-        osc.frequency.setValueAtTime(f1 * (Math.random() > 0.5 ? 1.35 : 0.74), now + 0.018);
-        g.gain.setValueAtTime(0.018, now);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.042);
+        osc.frequency.setValueAtTime(f1 * (Math.random() > 0.5 ? 1.35 : 0.74), now + 0.045);
+        osc.frequency.setValueAtTime(f1 * 1.1, now + 0.09);
+        g.gain.setValueAtTime(0.045, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.045);
+        osc.stop(now + 0.14);
 
         if (this._glitchGate && state.ghostVoiceFx !== false) {
           const gg = this._glitchGate.gain;
           gg.cancelScheduledValues(now);
           gg.setValueAtTime(1.0, now);
-          gg.setValueAtTime(0.32, now + 0.006);
-          gg.setValueAtTime(1.0, now + 0.024);
-          gg.setValueAtTime(0.48, now + 0.036);
-          gg.setValueAtTime(1.0, now + 0.054);
+          gg.setValueAtTime(0.15, now + 0.008);
+          gg.setValueAtTime(1.0, now + 0.045);
+          gg.setValueAtTime(0.25, now + 0.075);
+          gg.setValueAtTime(1.0, now + 0.12);
         }
       } else {
         // Comms Close Chirp + Radio Squelch Tail
@@ -633,14 +657,14 @@ class RebornAudioSpeechEngine {
         const g = ctx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(1040, now);
-        osc.frequency.exponentialRampToValueAtTime(520, now + 0.065);
-        g.gain.setValueAtTime(0.03, now);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.1);
+        g.gain.setValueAtTime(0.055, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.08);
-        this._playNoiseSquelch(ctx, 0.03, 0.02, 2200);
+        osc.stop(now + 0.13);
+        this._playNoiseSquelch(ctx, 0.09, 0.07, 2200);
       }
     } catch (_) {}
   }
@@ -2411,7 +2435,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v73');
+    const mod = await import('./ghost-3d.js?v=20261126_v74');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
