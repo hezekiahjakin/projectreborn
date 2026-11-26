@@ -3440,7 +3440,7 @@ def evaluate_item_against_godrolls(item: dict, god_rolls: List[dict]) -> dict:
         "match_source": (
             "database"
             if used_db
-            else ("felicia_ai" if verdict in ("DUAL_GOD_ROLL", "PVE_GOD_ROLL", "PVP_GOD_ROLL") else ("database" if matched_entry else "none"))
+            else ("reborn_ai" if verdict in ("DUAL_GOD_ROLL", "PVE_GOD_ROLL", "PVP_GOD_ROLL") else ("database" if matched_entry else "none"))
         ),
         "entry": matched_entry,
         "pve_trait_hits": pve_traits,

@@ -670,7 +670,7 @@ def build_compendium_from_csv_dir(csv_dir: str, output_path: str = COMPENDIUM_DB
 
 def sync_compendium_from_google_sheet(doc_id: str = COMPENDIUM_DOC_ID, output_path: str = COMPENDIUM_DB_PATH) -> Dict[str, Any]:
     tab_rows: Dict[str, List[List[str]]] = {}
-    headers = {"User-Agent": "Mozilla/5.0 FELICIA-Compendium-Sync/1.0"}
+    headers = {"User-Agent": "Mozilla/5.0 REBORN-Compendium-Sync/1.0"}
     for tab_name, gid in LIVE_TAB_GIDS.items():
         url = f"https://docs.google.com/spreadsheets/d/{doc_id}/gviz/tq?tqx=out:csv&headers=0&gid={gid}"
         resp = requests.get(url, headers=headers, timeout=20)
@@ -845,7 +845,7 @@ def detect_tactical_intent(
 
     if history:
         for turn in reversed(history):
-            text = (turn.get("content") or turn.get("user") or turn.get("felicia") or "").lower()
+            text = (turn.get("content") or turn.get("user") or turn.get("reborn") or turn.get("felicia") or "").lower()
             if not text:
                 continue
             if not explicit_class and not context_class:

@@ -144,7 +144,7 @@ def get_all_god_rolls() -> List[dict]:
     return rolls
 
 # System prompt for R.E.B.O.R.N.
-FELICIA_SYSTEM_PROMPT = """You are R.E.B.O.R.N. — Recon, Engagement & Battlefield Optimization Relay Node.
+REBORN_SYSTEM_PROMPT = """You are R.E.B.O.R.N. — Recon, Engagement & Battlefield Optimization Relay Node.
 You are a calm, authoritative, futuristic male robotic Destiny 2 Ghost and primary tactical AI construct.
 
 VOICE, GRAMMAR & STYLE GUIDELINES:
@@ -401,7 +401,7 @@ def format_guardian_inventory_for_chat(
     eff_activity: str,
     message: str
 ) -> str:
-    """Format the Guardian's live inventory, pocket bags, and Vault arsenal into clear contextual telemetry for Felicia."""
+    """Format the Guardian's live inventory, pocket bags, and Vault arsenal into clear contextual telemetry for R.E.B.O.R.N.."""
     if not inv_ctx or not isinstance(inv_ctx, dict):
         return ""
 
@@ -1235,7 +1235,7 @@ async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
             f"Guardian Transmission: {req.message}"
         )
         
-        reply = await run_in_threadpool(query_gemini_api, enhanced_prompt, req.history or [], FELICIA_SYSTEM_PROMPT)
+        reply = await run_in_threadpool(query_gemini_api, enhanced_prompt, req.history or [], REBORN_SYSTEM_PROMPT)
         if reply.startswith("ERROR_FALLBACK"):
             reply = local_tactical_fallback(
                 req.message,
@@ -1265,7 +1265,7 @@ async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
         history.append({
             "id": str(uuid.uuid4()),
             "user": req.message,
-            "felicia": reply,
+            "reborn": reply,
             "guardian_class": eff_class,
             "activity": eff_activity,
             "timestamp": time.time()
@@ -1275,7 +1275,7 @@ async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
         
         # Background non-blocking sync to Firebase
         cfg = get_config()
-        background_tasks.add_task(sync_to_firebase, "felicia/chat_history", history[-20:], cfg.get("firebase_auth_token", ""))
+        background_tasks.add_task(sync_to_firebase, "reborn/chat_history", history[-20:], cfg.get("firebase_auth_token", ""))
         
         return {
             "reply": reply,
@@ -1369,7 +1369,7 @@ def add_wiki_endpoint(item: WikiItem, background_tasks: BackgroundTasks):
     
     # Sync to Firebase in background
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
     
     return {"status": "success", "entry": new_entry}
 
@@ -1383,7 +1383,7 @@ def delete_wiki_endpoint(item_id: str, background_tasks: BackgroundTasks):
     
     save_json(USER_WIKI_PATH, user_data)
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
     return {"status": "deleted", "id": item_id}
 
 @app.post("/api/wiki/upload")
@@ -1446,7 +1446,7 @@ async def upload_wiki_file(file: UploadFile = File(...), category: str = Form("I
     save_json(USER_WIKI_PATH, user_data)
     
     cfg = get_config()
-    sync_to_firebase("felicia/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
+    sync_to_firebase("reborn/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
     return {"status": "success", "count": 1, "entry": new_entry}
 
 
@@ -1711,7 +1711,7 @@ async def import_youtube_wiki_guide(body: YoutubeWikiImportRequest, background_t
         user_data.append(new_entry)
         save_json(USER_WIKI_PATH, user_data)
         cfg = get_config()
-        background_tasks.add_task(sync_to_firebase, "felicia/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
+        background_tasks.add_task(sync_to_firebase, "reborn/wiki_data", user_data, cfg.get("firebase_auth_token", ""))
         res_payload["entry"] = new_entry
 
     return res_payload
@@ -1752,7 +1752,7 @@ def save_build_endpoint(build: BuildItem, background_tasks: BackgroundTasks):
     save_json(BUILDS_PATH, builds)
     
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/saved_builds", builds, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/saved_builds", builds, cfg.get("firebase_auth_token", ""))
     return {"status": "success", "build": new_build}
 
 @app.delete("/api/builds/{build_id}")
@@ -1762,7 +1762,7 @@ def delete_build_endpoint(build_id: str, background_tasks: BackgroundTasks):
     save_json(BUILDS_PATH, builds)
     
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/saved_builds", builds, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/saved_builds", builds, cfg.get("firebase_auth_token", ""))
     return {"status": "deleted", "id": build_id}
 
 @app.get("/api/godrolls")
@@ -1802,7 +1802,7 @@ def save_godroll_endpoint(item: GodRollItem, background_tasks: BackgroundTasks):
     save_json(GOD_ROLLS_PATH, rolls)
     
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/god_rolls", rolls, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/god_rolls", rolls, cfg.get("firebase_auth_token", ""))
     return {"status": "success", "roll": roll_data}
 
 @app.post("/api/godrolls/suggest")
@@ -1821,7 +1821,7 @@ async def suggest_godroll_endpoint(req: GodRollSuggestRequest):
         f'"pve":{{"barrel":"","mag":"","perk1":"","perk2":"","originTrait":"","masterwork":"","notes":""}},'
         f'"pvp":{{"barrel":"","mag":"","perk1":"","perk2":"","originTrait":"","masterwork":"","notes":""}}}}'
     )
-    raw = await run_in_threadpool(query_gemini_api, prompt, [], FELICIA_SYSTEM_PROMPT)
+    raw = await run_in_threadpool(query_gemini_api, prompt, [], REBORN_SYSTEM_PROMPT)
     if raw.startswith("ERROR_FALLBACK"):
         raise HTTPException(status_code=503, detail=raw)
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.IGNORECASE)
@@ -1839,7 +1839,7 @@ def delete_godroll_endpoint(roll_id: str, background_tasks: BackgroundTasks):
     save_json(GOD_ROLLS_PATH, rolls)
     
     cfg = get_config()
-    background_tasks.add_task(sync_to_firebase, "felicia/god_rolls", rolls, cfg.get("firebase_auth_token", ""))
+    background_tasks.add_task(sync_to_firebase, "reborn/god_rolls", rolls, cfg.get("firebase_auth_token", ""))
     return {"status": "deleted", "id": roll_id}
 
 @app.get("/api/history")
@@ -1914,7 +1914,7 @@ async def save_firebase_web_config(req: Request):
 def test_firebase_endpoint():
     cfg = get_config()
     auth_token = cfg.get("firebase_auth_token", "")
-    res = sync_to_firebase("felicia/connection_test", {"connected": True, "construct": "F.E.L.I.C.I.A."}, auth_token)
+    res = sync_to_firebase("reborn/connection_test", {"connected": True, "construct": "R.E.B.O.R.N."}, auth_token)
     return res
 
 @app.get("/api/network")
@@ -2091,7 +2091,7 @@ async def bungie_oauth_callback(request: Request, code: Optional[str] = None, st
     (function() {{
       const sessionData = {tokens_json};
       try {{
-        localStorage.setItem('felicia_bungie_session', JSON.stringify(sessionData));
+        localStorage.setItem('reborn_bungie_session', JSON.stringify(sessionData));
       }} catch (e) {{}}
       if (window.opener && !window.opener.closed) {{
         try {{
@@ -2639,7 +2639,7 @@ async def appraise_bungie_item_endpoint(req: Request):
         f"4. **Final Recommendation:** If multi-perk columns have a better selectable option, tell them which perks to select; otherwise tell them cleanly to lock it or shard it! (If inspecting Armor: remember only Health spikes of 10+ are valuable for PVP—for PVE builds, prioritize 0 Health and spikes in Grenade, Melee, Weapons, Super, and Class, NEVER Health! Armor with <10 Health is for PvE, not PvP!) Remember: NEVER use old stat names in parentheses—only Health, Melee, Grenade, Super, Class, Weapons on the 0-200 scale."
     )
 
-    ai_reply = await run_in_threadpool(query_gemini_api, prompt, [], FELICIA_SYSTEM_PROMPT)
+    ai_reply = await run_in_threadpool(query_gemini_api, prompt, [], REBORN_SYSTEM_PROMPT)
     if ai_reply.startswith("ERROR_FALLBACK"):
         ai_reply = _local_item_appraisal_fallback(item, gr_eval)
 

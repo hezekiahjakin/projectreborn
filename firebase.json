@@ -7,7 +7,7 @@
     "providers": {
       "emailPassword": true,
       "googleSignIn": {
-        "oAuthBrandDisplayName": "F.E.L.I.C.I.A. Destiny 2 Assistant",
+        "oAuthBrandDisplayName": "R.E.B.O.R.N. Destiny 2 Assistant",
         "authorizedRedirectUris": [
           "https://ping-vault-matrix.firebaseapp.com/__/auth/handler",
           "http://localhost"

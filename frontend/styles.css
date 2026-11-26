@@ -813,7 +813,7 @@ html, body {
   gap: 8px;
 }
 
-.message-row.felicia .msg-bubble {
+.message-row.reborn .msg-bubble {
   border-left: 3px solid var(--vanguard-amber);
 }
 
@@ -4224,7 +4224,7 @@ dialog.modal-inspect-item::backdrop {
   cursor: not-allowed;
 }
 
-.btn-item-action.btn-ask-felicia {
+.btn-item-action.btn-ask-reborn {
   background: linear-gradient(135deg, #F5A623 0%, #D97706 100%);
   border-color: #FDE047;
   color: #070A0F;
@@ -4232,7 +4232,7 @@ dialog.modal-inspect-item::backdrop {
   box-shadow: 0 4px 18px rgba(245, 166, 35, 0.35);
 }
 
-.btn-item-action.btn-ask-felicia:hover:not(:disabled) {
+.btn-item-action.btn-ask-reborn:hover:not(:disabled) {
   background: linear-gradient(135deg, #FBBF24 0%, #EA580C 100%);
   box-shadow: 0 6px 24px rgba(245, 166, 35, 0.55);
   color: #070A0F;
@@ -4257,14 +4257,14 @@ dialog.modal-inspect-item::backdrop {
 }
 
 /* F.E.L.I.C.I.A. Roll Review Panel */
-.inspect-felicia-panel {
+.inspect-reborn-panel {
   border-radius: 10px;
   border: 1px solid rgba(245, 166, 35, 0.45);
   background: linear-gradient(180deg, rgba(245, 166, 35, 0.08) 0%, rgba(13, 18, 28, 0.95) 100%);
   padding: 14px 16px;
 }
 
-.felicia-review-header {
+.reborn-review-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -4275,7 +4275,7 @@ dialog.modal-inspect-item::backdrop {
   border-bottom: 1px solid rgba(245, 166, 35, 0.2);
 }
 
-.felicia-review-title {
+.reborn-review-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4286,7 +4286,7 @@ dialog.modal-inspect-item::backdrop {
   color: var(--vanguard-amber);
 }
 
-.felicia-review-controls {
+.reborn-review-controls {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -4336,21 +4336,21 @@ dialog.modal-inspect-item::backdrop {
   color: #FCA5A5;
 }
 
-.felicia-review-body {
+.reborn-review-body {
   font-size: 14px;
   line-height: 1.6;
   color: #E2E8F0;
 }
 
-.felicia-review-body h3,
-.felicia-review-body h4 {
+.reborn-review-body h3,
+.reborn-review-body h4 {
   font-family: var(--font-display);
   font-size: 14px;
   color: var(--arc-blue);
   margin: 12px 0 4px;
 }
 
-.felicia-review-body p {
+.reborn-review-body p {
   margin-bottom: 8px;
 }
 
@@ -4736,7 +4736,7 @@ dialog.modal-saved-loadout::backdrop {
   gap: 12px;
 }
 
-.scanner-felicia-msg {
+.scanner-reborn-msg {
   font-size: 14px;
   line-height: 1.5;
   color: #E2E8F0;
@@ -8253,7 +8253,7 @@ dialog.modal-loadout-builder::backdrop {
 /* ==========================================================================
    TACTICAL TOAST NOTIFICATIONS
    ========================================================================== */
-.felicia-toast-container {
+.reborn-toast-container {
   position: fixed;
   bottom: 20px;
   right: 20px;
@@ -8265,7 +8265,7 @@ dialog.modal-loadout-builder::backdrop {
   pointer-events: none;
 }
 
-.felicia-toast {
+.reborn-toast {
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 13px;
@@ -8281,12 +8281,12 @@ dialog.modal-loadout-builder::backdrop {
   pointer-events: auto;
 }
 
-.felicia-toast.is-visible {
+.reborn-toast.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-.felicia-toast.is-error {
+.reborn-toast.is-error {
   background: rgba(69, 10, 10, 0.96);
   border-color: rgba(248, 113, 113, 0.7);
   color: #FECACA;

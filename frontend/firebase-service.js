@@ -49,7 +49,7 @@ let recaptchaVerifier = null;
 let phoneConfirmationResult = null;
 
 export function getFirebaseConfig() {
-  const saved = localStorage.getItem("felicia_firebase_config");
+  const saved = localStorage.getItem("reborn_firebase_config");
   if (saved) {
     try {
       return { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
@@ -60,9 +60,9 @@ export function getFirebaseConfig() {
 
 export function saveFirebaseConfig(cfg) {
   const merged = { ...getFirebaseConfig(), ...cfg };
-  localStorage.setItem("felicia_firebase_config", JSON.stringify(merged));
-  if (cfg.apiKey) localStorage.setItem("felicia_firebase_apiKey", cfg.apiKey);
-  if (cfg.appId) localStorage.setItem("felicia_firebase_appId", cfg.appId);
+  localStorage.setItem("reborn_firebase_config", JSON.stringify(merged));
+  if (cfg.apiKey) localStorage.setItem("reborn_firebase_apiKey", cfg.apiKey);
+  if (cfg.appId) localStorage.setItem("reborn_firebase_appId", cfg.appId);
   return initFirebase(merged);
 }
 

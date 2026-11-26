@@ -25,7 +25,7 @@ import {
   Destiny3DStage,
   ICONIC_DESTINY_SHADERS,
   searchManifestShaders
-} from './tgxm-viewer.js?v=20261126_v58';
+} from './tgxm-viewer.js?v=20261126_v59';
 
 // Application State
 const state = {
@@ -104,15 +104,15 @@ const ACTIVITY_INQUIRIES = {
    TACTICAL TOAST NOTIFICATIONS
    ========================================================================== */
 function showToast(message, type = 'info', durationMs = 3800) {
-  let container = document.getElementById('feliciaToastContainer');
+  let container = document.getElementById('rebornToastContainer');
   if (!container) {
     container = document.createElement('div');
-    container.id = 'feliciaToastContainer';
-    container.className = 'felicia-toast-container';
+    container.id = 'rebornToastContainer';
+    container.className = 'reborn-toast-container';
     document.body.appendChild(container);
   }
   const toast = document.createElement('div');
-  toast.className = `felicia-toast ${type === 'error' ? 'is-error' : 'is-info'}`;
+  toast.className = `reborn-toast ${type === 'error' ? 'is-error' : 'is-info'}`;
   toast.textContent = String(message || '');
   container.appendChild(toast);
 
@@ -135,13 +135,13 @@ class GhostAudioEngine {
     this.lastHoverAt = 0;
     this.suppressHoverUntil = 0;
     this.urls = {
-      hover: './sfx/hover.wav?v=20261126_v58',
-      equip: './sfx/equip.wav?v=20261126_v58',
-      inspect: './sfx/inspect.wav?v=20261126_v58',
-      characterSelect: './sfx/character_select.m4a?v=20261126_v58',
-      ghostScan: './sfx/ghost_scan.m4a?v=20261126_v58',
-      revive: './sfx/revive.m4a?v=20261126_v58',
-      crucibleKill: './sfx/crucible_kill.m4a?v=20261126_v58',
+      hover: './sfx/hover.wav?v=20261126_v59',
+      equip: './sfx/equip.wav?v=20261126_v59',
+      inspect: './sfx/inspect.wav?v=20261126_v59',
+      characterSelect: './sfx/character_select.m4a?v=20261126_v59',
+      ghostScan: './sfx/ghost_scan.m4a?v=20261126_v59',
+      revive: './sfx/revive.m4a?v=20261126_v59',
+      crucibleKill: './sfx/crucible_kill.m4a?v=20261126_v59',
     };
     this._preloadRaw();
   }
@@ -998,7 +998,7 @@ async function sendChatMessage(userText) {
     }
 
     // Append R.E.B.O.R.N.'s Robotic Ghost reply with DIM Loadout Blueprint if applicable
-    appendMessage('felicia', 'R.E.B.O.R.N.', reply, data.snippets_used, data.recommended_build || null, {
+    appendMessage('reborn', 'R.E.B.O.R.N.', reply, data.snippets_used, data.recommended_build || null, {
       effectiveClass: data.effective_class,
       effectiveSubclass: data.effective_subclass,
       userPrompt: text
@@ -1021,7 +1021,7 @@ async function sendChatMessage(userText) {
     const safeMsg = (err.message && !err.message.includes('Unexpected token') && !err.message.includes('is not valid JSON')) 
       ? err.message 
       : "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission.";
-    appendMessage('felicia', 'R.E.B.O.R.N.', `Signal dropped out: ${safeMsg}`);
+    appendMessage('reborn', 'R.E.B.O.R.N.', `Signal dropped out: ${safeMsg}`);
     updateConstructMood('ERROR // COMMUNICATIONS DRIFT');
   }
 }
@@ -1033,7 +1033,7 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
   const row = document.createElement('div');
   row.className = `message-row ${role}`;
 
-  const isReborn = role === 'felicia';
+  const isReborn = role === 'reborn' || role === 'felicia';
   const avatarHtml = isReborn 
     ? '<div class="msg-avatar"><div class="ghost-mini-core"></div></div>'
     : '<div class="msg-avatar"><span class="user-avatar-text">G</span></div>';
@@ -1660,7 +1660,7 @@ const CLAN_SECURITY_PASSCODE = null; // Verified server-side via /api/auth/clan/
 let pendingSecurityAction = null;
 
 function isClanAuthorized() {
-  return sessionStorage.getItem('felicia_clan_auth') === 'true';
+  return sessionStorage.getItem('reborn_clan_auth') === 'true';
 }
 
 function promptSecurityClearance(action, subtitle, desc) {
@@ -1777,7 +1777,7 @@ function checkAndShowFieldAdvisory(force = false) {
 
   let acknowledged = false;
   try {
-    acknowledged = localStorage.getItem('felicia_clan_advisory_ack_v2') === 'true';
+    acknowledged = localStorage.getItem('reborn_clan_advisory_ack_v2') === 'true';
   } catch (_) {}
 
   if (!acknowledged) {
@@ -1806,7 +1806,7 @@ function initFieldAdvisoryModal() {
       modal.removeAttribute('open');
     }
     try {
-      localStorage.setItem('felicia_clan_advisory_ack_v2', 'true');
+      localStorage.setItem('reborn_clan_advisory_ack_v2', 'true');
     } catch (_) {}
   };
 
@@ -1897,7 +1897,8 @@ function initSpeechRecognition() {
 /* ==========================================================================
    BUNGIE.NET INVENTORY, VAULT & "ASK R.E.B.O.R.N." ENGINE
    ========================================================================== */
-const BUNGIE_STORAGE_KEY = 'felicia_bungie_session';
+const BUNGIE_STORAGE_KEY = 'reborn_bungie_session';
+if (typeof localStorage !== 'undefined' && !localStorage.getItem('reborn_bungie_session') && localStorage.getItem('felicia_bungie_session')) { try { localStorage.setItem('reborn_bungie_session', localStorage.getItem('felicia_bungie_session')); } catch (_) {} }
 
 function escapeHtml(str) {
   return String(str ?? '')
@@ -1962,7 +1963,7 @@ function startBungieLogin() {
 
 function getGodRollScanFlagKey() {
   const mid = state.bungieSession?.membership_id || state.bungieData?.player?.destinyMembershipId || 'default';
-  return `felicia_has_scanned_godrolls_${mid}`;
+  return `reborn_has_scanned_godrolls_${mid}`;
 }
 
 function hasScannedGodRollsBefore() {
@@ -2046,7 +2047,7 @@ async function fetchBungieServerConfigStatus() {
   } catch (e) {}
 }
 
-const BUNGIE_INV_CACHE_KEY = 'felicia_bungie_inventory_cache_v1';
+const BUNGIE_INV_CACHE_KEY = 'reborn_bungie_inventory_cache_v1';
 let _inventorySyncPromise = null;
 let _lastInventorySyncAt = 0;
 
@@ -2953,8 +2954,8 @@ function openItemInspectModal(item) {
       feedbackEl.classList.add('hidden');
       feedbackEl.classList.remove('error');
     }
-    const feliciaPanel = document.getElementById('inspectRebornPanel');
-    if (feliciaPanel) feliciaPanel.classList.add('hidden');
+    const rebornPanel = document.getElementById('inspectRebornPanel');
+    if (rebornPanel) rebornPanel.classList.add('hidden');
 
     // Populate Action Buttons: Send to Hunter / Warlock / Titan / Vault + Signature "Ask R.E.B.O.R.N."
     const actionsGrid = document.getElementById('inspectActionsGrid');
@@ -2980,7 +2981,7 @@ function openItemInspectModal(item) {
         // Signature Action: Ask R.E.B.O.R.N.
         const askBtn = document.createElement('button');
         askBtn.type = 'button';
-        askBtn.className = 'btn-item-action btn-ask-felicia';
+        askBtn.className = 'btn-item-action btn-ask-reborn';
         askBtn.id = 'btnTriggerAskReborn';
         askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
         askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
@@ -3034,7 +3035,7 @@ function openItemInspectModal(item) {
         // Signature Action: Ask R.E.B.O.R.N.
         const askBtn = document.createElement('button');
         askBtn.type = 'button';
-        askBtn.className = 'btn-item-action btn-ask-felicia';
+        askBtn.className = 'btn-item-action btn-ask-reborn';
         askBtn.id = 'btnTriggerAskReborn';
         askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
         askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
@@ -3631,7 +3632,8 @@ async function executeEquipSavedLoadout() {
 /* ==========================================================================
    DIM-STYLE TACTICAL LOADOUT BUILDER, MOD SOCKET MANAGER & ARTIFACT SELECTOR
    ========================================================================== */
-const CUSTOM_LOADOUTS_STORAGE_KEY = 'felicia_custom_loadouts_v1';
+const CUSTOM_LOADOUTS_STORAGE_KEY = 'reborn_custom_loadouts_v1';
+if (typeof localStorage !== 'undefined' && !localStorage.getItem('reborn_custom_loadouts_v1') && localStorage.getItem('felicia_custom_loadouts_v1')) { try { localStorage.setItem('reborn_custom_loadouts_v1', localStorage.getItem('felicia_custom_loadouts_v1')); } catch (_) {} }
 let activeLoadoutBuilderState = null;
 let activeLbPickerSlot = null;
 
@@ -4027,7 +4029,7 @@ function getCustomLoadoutsForClass(className) {
 
 function saveCustomLoadoutToStorage(draft) {
   const all = getCustomLoadouts();
-  const id = draft.id || `felicia_ld_${Date.now()}`;
+  const id = draft.id || `reborn_ld_${Date.now()}`;
   const slotInstanceIds = {};
   ['Kinetic', 'Energy', 'Heavy', 'Helmet', 'Gauntlets', 'Chest Armor', 'Leg Armor', 'Class Armor'].forEach(slot => {
     if (draft.slots && draft.slots[slot] && draft.slots[slot].itemInstanceId) {
@@ -5567,7 +5569,7 @@ function renderInlineChatLoadoutCard(containerEl, blueprint) {
         <button type="button" class="btn-item-action" data-role="chat-open-builder">
           🛠️ Customize Gear, Mods &amp; Artifact
         </button>
-        <button type="button" class="btn-item-action btn-ask-felicia" data-role="chat-save-loadout">
+        <button type="button" class="btn-item-action btn-ask-reborn" data-role="chat-save-loadout">
           💾 Save to My Loadouts
         </button>
       </div>
@@ -7971,7 +7973,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const container = document.getElementById('messagesContainer');
         if (container) {
           container.innerHTML = `
-            <div class="message-row felicia">
+            <div class="message-row reborn">
               <div class="msg-avatar"><div class="ghost-mini-core"></div></div>
               <div class="msg-bubble">
                 <div class="msg-header">
@@ -8045,7 +8047,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (verified) {
-        sessionStorage.setItem('felicia_clan_auth', 'true');
+        sessionStorage.setItem('reborn_clan_auth', 'true');
         sessionStorage.setItem('reborn_clan_passcode', enteredCode);
         sfx.playRevive?.();
         modalSecurityPasscode.close();
@@ -9054,7 +9056,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLockAdmin = document.getElementById('btnLockAdmin');
   if (btnLockAdmin) {
     btnLockAdmin.addEventListener('click', () => {
-      sessionStorage.removeItem('felicia_clan_auth');
+      sessionStorage.removeItem('reborn_clan_auth');
       try { sfx.playAlert(); } catch(e) {}
       switchTabDirect('tab-inventory');
       alert('Clan Administrator Mode locked. Security passcode required to re-enter Admin Settings.');
@@ -9564,7 +9566,7 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTabDirect('tab-comms');
       if (state.lastAppraisalReply) {
         appendMessage('user', 'GUARDIAN', `Evaluate my ${it.name} (${perksSummary || it.typeName})`);
-        appendMessage('felicia', 'R.E.B.O.R.N.', state.lastAppraisalReply);
+        appendMessage('reborn', 'R.E.B.O.R.N.', state.lastAppraisalReply);
         state.chatHistory.push({ role: 'user', content: `Evaluate my ${it.name} (${perksSummary || it.typeName})` });
         state.chatHistory.push({ role: 'model', content: state.lastAppraisalReply });
       }

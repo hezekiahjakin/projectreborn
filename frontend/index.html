@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v58">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v58">
+  <link rel="stylesheet" href="styles.css?v=20261126_v59">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v59">
 </head>
 <body class="theme-vanguard">
 
@@ -245,7 +245,7 @@
           <!-- Messages Stream -->
           <div class="messages-container" id="messagesContainer">
             <!-- Initial Greeting -->
-            <div class="message-row felicia">
+            <div class="message-row reborn">
               <div class="msg-avatar">
                 <div class="ghost-mini-core"></div>
               </div>
@@ -698,7 +698,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <button type="button" class="btn-item-action" id="btnLbAutoOptimize" title="Auto-select best owned weapons &amp; armor from Inventory + Vault">
               ✨ Auto-Optimize Gear
             </button>
-            <button type="button" class="btn-item-action btn-ask-felicia" id="btnLbSaveCustom">
+            <button type="button" class="btn-item-action btn-ask-reborn" id="btnLbSaveCustom">
               💾 Save Loadout
             </button>
             <button type="button" class="btn-item-action btn-lb-delete hidden" id="btnLbDeleteCustom" title="Delete this saved custom loadout">
@@ -1602,19 +1602,19 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         </div>
 
         <!-- R.E.B.O.R.N. LIVE ROLL REVIEW PANEL (REVEALED ON CLICKING "ASK R.E.B.O.R.N.") -->
-        <div class="inspect-felicia-panel hidden" id="inspectRebornPanel">
-          <div class="felicia-review-header">
-            <div class="felicia-review-title">
-              <span class="felicia-orb-dot">❖</span>
+        <div class="inspect-reborn-panel hidden" id="inspectRebornPanel">
+          <div class="reborn-review-header">
+            <div class="reborn-review-title">
+              <span class="reborn-orb-dot">❖</span>
               <span>R.E.B.O.R.N. // ROLL &amp; GEAR EVALUATION</span>
             </div>
-            <div class="felicia-review-controls">
+            <div class="reborn-review-controls">
               <span class="godroll-verdict-pill hidden" id="inspectVerdictPill">EVALUATING</span>
               <button type="button" class="btn-mini-action" id="btnSpeakAppraisal" title="Hear R.E.B.O.R.N. read this review">🔊 Speak</button>
               <button type="button" class="btn-mini-action" id="btnOpenInComms" title="Continue discussion in AI Chat">💬 Open in Chat</button>
             </div>
           </div>
-          <div class="felicia-review-body" id="inspectRebornBody">
+          <div class="reborn-review-body" id="inspectRebornBody">
             <!-- Populated with markdown-formatted PVE / PVP / Shard verdict -->
           </div>
         </div>
@@ -1658,7 +1658,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       <div class="modal-body scanner-modal-body">
         <!-- R.E.B.O.R.N. Readout & Stats -->
         <div class="scanner-summary-card" id="scannerSummaryCard">
-          <div class="scanner-felicia-msg" id="scannerRebornMsg">Scanning Characters &amp; Vault...</div>
+          <div class="scanner-reborn-msg" id="scannerRebornMsg">Scanning Characters &amp; Vault...</div>
           <div class="scanner-kpi-strip" id="scannerKpiStrip"></div>
         </div>
 
@@ -1728,7 +1728,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="saved-loadout-actions">
           <button type="button" class="btn-item-action" id="btnEquipSavedLoadout">⚡ Equip Loadout In-Game</button>
           <button type="button" class="btn-item-action" id="btnImportSavedLoadoutToBuilder">🛠️ Customize in Loadout Builder</button>
-          <button type="button" class="btn-item-action btn-ask-felicia" id="btnAskRebornLoadout">❖ Ask R.E.B.O.R.N. to Review Loadout</button>
+          <button type="button" class="btn-item-action btn-ask-reborn" id="btnAskRebornLoadout">❖ Ask R.E.B.O.R.N. to Review Loadout</button>
         </div>
         <div class="inspect-transfer-feedback hidden" id="savedLoadoutFeedback"></div>
         <div id="savedLoadoutItemsContainer"></div>
@@ -1925,7 +1925,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v58"></script>
-  <script type="module" src="app.js?v=20261126_v58"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v59"></script>
+  <script type="module" src="app.js?v=20261126_v59"></script>
 </body>
 </html>
