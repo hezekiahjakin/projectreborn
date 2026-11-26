@@ -335,9 +335,9 @@ class RebornAudioSpeechEngine {
 
     if (typeof window !== 'undefined') {
       const unlockOnce = () => this.unlock();
-      window.addEventListener('pointerdown', unlockOnce, { passive: true });
-      window.addEventListener('touchstart', unlockOnce, { passive: true });
-      window.addEventListener('keydown', unlockOnce, { passive: true });
+      ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+        window.addEventListener(evt, unlockOnce, { passive: true, capture: true });
+      });
       if ('speechSynthesis' in window) {
         this.voices = window.speechSynthesis.getVoices();
         window.speechSynthesis.onvoiceschanged = () => {
@@ -366,116 +366,190 @@ class RebornAudioSpeechEngine {
     }
     if (this._ctx.state === 'suspended') {
       this._ctx.resume().catch(() => {});
+      // iOS Safari: a silent buffer started inside the gesture fully unlocks output
+      try {
+        const sb = this._ctx.createBuffer(1, 1, 22050);
+        const ss = this._ctx.createBufferSource();
+        ss.buffer = sb;
+        ss.connect(this._ctx.destination);
+        ss.start(0);
+      } catch (_) {}
     }
     return this._ctx;
   }
 
   _initGhostDspBus(ctx) {
-    // Master Destiny 2 Ghost DSP Chain: preserves ElevenLabs PFWTXPnrVxMf7COApT6N clarity
-    // while adding Bungie-style crystalline dual-delay harmonics, subtle ring-mod shimmer, & glitch gate
+    // ===== R.E.B.O.R.N. GHOST VOICE DSP v2 (clearly audible robotic comms character) =====
+    // input -> glitchGate -> comms bandpass -> [dry | metallic combs | ring-mod robot | digital crush] -> comp -> analyser
     const input = ctx.createGain();
     const glitchGate = ctx.createGain();
     glitchGate.gain.value = 1.0;
     input.connect(glitchGate);
 
+    // Comms radio band (removes boom + air like an in-helmet Ghost transmission)
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 115;
-
+    hp.frequency.value = 240;
+    hp.Q.value = 0.7;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 5400;
+    lp.Q.value = 0.8;
     const presence = ctx.createBiquadFilter();
     presence.type = 'peaking';
-    presence.frequency.value = 2650;
-    presence.Q.value = 1.15;
-    presence.gain.value = 3.2;
-
+    presence.frequency.value = 2300;
+    presence.Q.value = 1.1;
+    presence.gain.value = 5;
     glitchGate.connect(hp);
-    hp.connect(presence);
+    hp.connect(lp);
+    lp.connect(presence);
 
+    const bus = presence;
+
+    // 1. Dry (still intelligible ElevenLabs voice)
     const dryGain = ctx.createGain();
-    dryGain.gain.value = 0.86;
-    presence.connect(dryGain);
+    dryGain.gain.value = 0.62;
+    bus.connect(dryGain);
 
-    // Wet A & B: Dual detuned metallic Ghost shell resonators
-    const wetHp = ctx.createBiquadFilter();
-    wetHp.type = 'highpass';
-    wetHp.frequency.value = 380;
-    presence.connect(wetHp);
+    // 2. Metallic Ghost-shell comb resonators (the "double-voice" robotic ring)
+    const makeComb = (delaySec, feedback, wet, lfoHz, lfoDepth) => {
+      const d = ctx.createDelay(0.1);
+      d.delayTime.value = delaySec;
+      const fb = ctx.createGain();
+      fb.gain.value = feedback;
+      d.connect(fb);
+      fb.connect(d);
+      const w = ctx.createGain();
+      w.gain.value = wet;
+      bus.connect(d);
+      d.connect(w);
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = lfoHz;
+      const depth = ctx.createGain();
+      depth.gain.value = lfoDepth;
+      lfo.connect(depth);
+      depth.connect(d.delayTime);
+      lfo.start();
+      return w;
+    };
+    const combA = makeComb(0.0068, 0.42, 0.36, 0.9, 0.0004);
+    const combB = makeComb(0.0127, 0.34, 0.26, 2.3, 0.0006);
 
-    const delayA = ctx.createDelay(0.1);
-    delayA.delayTime.value = 0.0095;
-    const fbA = ctx.createGain();
-    fbA.gain.value = 0.22;
-    delayA.connect(fbA);
-    fbA.connect(delayA);
-    const wetGainA = ctx.createGain();
-    wetGainA.gain.value = 0.23;
-    wetHp.connect(delayA);
-    delayA.connect(wetGainA);
-
-    const delayB = ctx.createDelay(0.1);
-    delayB.delayTime.value = 0.0185;
-    const fbB = ctx.createGain();
-    fbB.gain.value = 0.18;
-    delayB.connect(fbB);
-    fbB.connect(delayB);
-    const wetGainB = ctx.createGain();
-    wetGainB.gain.value = 0.16;
-    wetHp.connect(delayB);
-    delayB.connect(wetGainB);
-
-    // Subtle LFO modulation on the two Ghost resonators
-    const lfoA = ctx.createOscillator();
-    lfoA.type = 'sine';
-    lfoA.frequency.value = 1.85;
-    const lfoDepthA = ctx.createGain();
-    lfoDepthA.gain.value = 0.00045;
-    lfoA.connect(lfoDepthA);
-    lfoDepthA.connect(delayA.delayTime);
-    lfoA.start();
-
-    const lfoB = ctx.createOscillator();
-    lfoB.type = 'sine';
-    lfoB.frequency.value = 3.15;
-    const lfoDepthB = ctx.createGain();
-    lfoDepthB.gain.value = 0.00055;
-    lfoB.connect(lfoDepthB);
-    lfoDepthB.connect(delayB.delayTime);
-    lfoB.start();
-
-    // Subtle Synthetic Ring-Modulator Harmonic Shimmer (74Hz carrier)
-    const ringBp = ctx.createBiquadFilter();
-    ringBp.type = 'bandpass';
-    ringBp.frequency.value = 1850;
-    ringBp.Q.value = 0.9;
-    presence.connect(ringBp);
-
-    const ringModNode = ctx.createGain();
-    ringModNode.gain.value = 0;
-    const ringCarrier = ctx.createOscillator();
-    ringCarrier.type = 'sine';
-    ringCarrier.frequency.value = 74;
-    ringCarrier.connect(ringModNode.gain);
-    ringCarrier.start();
-
+    // 3. Ring modulator (classic synthetic robot timbre)
+    const ringIn = ctx.createGain();
+    ringIn.gain.value = 0;
+    const carrier = ctx.createOscillator();
+    carrier.type = 'sine';
+    carrier.frequency.value = 92;
+    carrier.connect(ringIn.gain);
+    carrier.start();
     const ringMix = ctx.createGain();
-    ringMix.gain.value = 0.085;
-    ringBp.connect(ringModNode);
-    ringModNode.connect(ringMix);
+    ringMix.gain.value = 0.24;
+    bus.connect(ringIn);
+    ringIn.connect(ringMix);
 
-    // Studio Glue Compressor -> Master Analyser
+    // 4. Digital bit-crush grit (quantized waveshaper)
+    const crush = ctx.createWaveShaper();
+    const steps = 18;
+    const curve = new Float32Array(2048);
+    for (let i = 0; i < curve.length; i++) {
+      const x = (i / (curve.length - 1)) * 2 - 1;
+      curve[i] = Math.round(x * steps) / steps;
+    }
+    crush.curve = curve;
+    crush.oversample = 'none';
+    const crushMix = ctx.createGain();
+    crushMix.gain.value = 0.14;
+    bus.connect(crush);
+    crush.connect(crushMix);
+
+    // Glue compressor + makeup gain -> analyser (drives the 3D Ghost) -> speakers
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -16;
-    comp.knee.value = 12;
-    comp.ratio.value = 3.5;
+    comp.threshold.value = -20;
+    comp.knee.value = 10;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.004;
+    comp.release.value = 0.12;
+    const makeup = ctx.createGain();
+    makeup.gain.value = 1.25;
 
     dryGain.connect(comp);
-    wetGainA.connect(comp);
-    wetGainB.connect(comp);
+    combA.connect(comp);
+    combB.connect(comp);
     ringMix.connect(comp);
-    comp.connect(this._analyser);
+    crushMix.connect(comp);
+    comp.connect(makeup);
+    makeup.connect(this._analyser);
 
     this._ghostFxInput = input;
     this._glitchGate = glitchGate;
+    this._activeGlitchSources = [];
+  }
+
+  _scheduleBufferGlitches(ctx, audioBuffer, startAt, genId) {
+    // Real in-game style digital stutters: duck the voice and replay a 70ms slice twice + static crackle
+    if (state.ghostVoiceFx === false || !this._glitchGate || !audioBuffer) return;
+    const dur = audioBuffer.duration;
+    if (dur < 1.4) return;
+    const times = [];
+    let t = 0.7 + Math.random() * 0.9;
+    while (t < dur - 0.45 && times.length < 6) {
+      times.push(t);
+      t += 1.5 + Math.random() * 1.9;
+    }
+    const gg = this._glitchGate.gain;
+    times.forEach((rel) => {
+      const at = startAt + rel;
+      const sliceLen = 0.07;
+      const sliceStart = Math.max(0, rel - 0.05);
+      // Duck original voice
+      gg.setValueAtTime(1.0, at);
+      gg.linearRampToValueAtTime(0.05, at + 0.004);
+      gg.setValueAtTime(0.05, at + sliceLen * 2);
+      gg.linearRampToValueAtTime(1.0, at + sliceLen * 2 + 0.01);
+      // Stutter repeats (bypass gate so they are heard while voice is ducked)
+      for (let r = 0; r < 2; r++) {
+        try {
+          const s = ctx.createBufferSource();
+          s.buffer = audioBuffer;
+          s.playbackRate.value = r === 0 ? 1.0 : 1.07;
+          const sg = ctx.createGain();
+          sg.gain.value = 0.85;
+          s.connect(sg);
+          sg.connect(this._ghostFxInput);
+          s.start(at + r * sliceLen, sliceStart, sliceLen);
+          this._activeGlitchSources.push(s);
+        } catch (_) {}
+      }
+      // Static crackle burst
+      try {
+        const len = Math.floor(ctx.sampleRate * 0.05);
+        const nb = ctx.createBuffer(1, len, ctx.sampleRate);
+        const ch = nb.getChannelData(0);
+        for (let i = 0; i < len; i++) ch[i] = (Math.random() * 2 - 1) * (Math.random() > 0.7 ? 1 : 0.25) * (1 - i / len);
+        const ns = ctx.createBufferSource();
+        ns.buffer = nb;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 3200;
+        bp.Q.value = 1.6;
+        const ng = ctx.createGain();
+        ng.gain.value = 0.09;
+        ns.connect(bp);
+        bp.connect(ng);
+        ng.connect(this._analyser);
+        ns.start(at);
+        this._activeGlitchSources.push(ns);
+      } catch (_) {}
+      // Sync 3D Ghost twitch
+      const delayMs = Math.max(0, (at - ctx.currentTime) * 1000);
+      setTimeout(() => {
+        if (genId !== this._genId) return;
+        state.ghostGlitchPulse = 1;
+        setTimeout(() => { state.ghostGlitchPulse = 0; }, 150);
+      }, delayMs);
+    });
   }
 
   _playNoiseSquelch(ctx, duration = 0.028, vol = 0.026, centerFreq = 2600) {
@@ -573,12 +647,14 @@ class RebornAudioSpeechEngine {
 
   _startCommsGlitchLoop(genId) {
     this._stopCommsGlitchLoop();
-    if (state.ghostVoiceFx === false) return;
+    // Buffer-synced stutters are scheduled inside _scheduleBufferGlitches; this loop only
+    // covers the HTMLAudioElement fallback path where no AudioBuffer is available.
+    if (state.ghostVoiceFx === false || this._activeSource) return;
     const scheduleNext = () => {
       const delayMs = 1900 + Math.random() * 2400;
       this._glitchTimer = setTimeout(() => {
         if (!state.isSpeaking || genId !== this._genId) return;
-        if (state.ghostVoiceFx !== false) {
+        if (state.ghostVoiceFx !== false && !this._activeSource) {
           this.playCommsTone('glitch');
         }
         scheduleNext();
@@ -681,15 +757,21 @@ class RebornAudioSpeechEngine {
           const src = ctx.createBufferSource();
           src.buffer = audioBuffer;
           src.playbackRate.value = 1.0;
-          const targetBus = (state.ghostVoiceFx !== false && this._ghostFxInput) ? this._ghostFxInput : this._analyser;
-          src.connect(targetBus);
+          const fxOn = state.ghostVoiceFx !== false && this._ghostFxInput;
+          src.connect(fxOn ? this._ghostFxInput : this._analyser);
           this._activeSource = src;
+          const startAt = ctx.currentTime + 0.03;
+          if (fxOn) {
+            this._glitchGate.gain.cancelScheduledValues(0);
+            this._glitchGate.gain.setValueAtTime(1.0, ctx.currentTime);
+            this._scheduleBufferGlitches(ctx, audioBuffer, startAt, genId);
+          }
           return await new Promise((resolve) => {
             src.onended = () => {
               if (this._activeSource === src) this._activeSource = null;
               resolve();
             };
-            src.start(0);
+            src.start(startAt);
           });
         }
       } catch (err) {
@@ -697,12 +779,18 @@ class RebornAudioSpeechEngine {
       }
     }
 
-    // HTMLAudioElement playback of exact ElevenLabs MP3/WAV (never falls back to OS SpeechSynthesis!)
+    // HTMLAudioElement playback of exact ElevenLabs MP3 (still routed through Ghost FX when possible)
     if (genId !== this._genId) return;
     const blob = new Blob([arrayBuffer], { type: mimeType || 'audio/mpeg' });
     const blobUrl = URL.createObjectURL(blob);
     const audioEl = new Audio(blobUrl);
     this._activeHtmlAudio = audioEl;
+    try {
+      if (ctx && ctx.state === 'running' && state.ghostVoiceFx !== false && this._ghostFxInput) {
+        const mes = ctx.createMediaElementSource(audioEl);
+        mes.connect(this._ghostFxInput);
+      }
+    } catch (_) {}
     return new Promise((resolve) => {
       const finish = () => {
         URL.revokeObjectURL(blobUrl);
@@ -820,6 +908,16 @@ class RebornAudioSpeechEngine {
   stop() {
     this._genId++;
     this._stopCommsGlitchLoop();
+    if (Array.isArray(this._activeGlitchSources)) {
+      this._activeGlitchSources.forEach(s => { try { s.stop(); s.disconnect(); } catch (_) {} });
+      this._activeGlitchSources = [];
+    }
+    if (this._glitchGate && this._ctx) {
+      try {
+        this._glitchGate.gain.cancelScheduledValues(0);
+        this._glitchGate.gain.setValueAtTime(1.0, this._ctx.currentTime);
+      } catch (_) {}
+    }
     if (this._abortCtrl) {
       try { this._abortCtrl.abort(); } catch (_) {}
       this._abortCtrl = null;
@@ -2313,7 +2411,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v72');
+    const mod = await import('./ghost-3d.js?v=20261126_v73');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
