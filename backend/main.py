@@ -308,6 +308,7 @@ class ChatRequest(BaseModel):
     subclass: Optional[str] = None
     tactical_inquiry: Optional[str] = None
     inventory_context: Optional[Dict[str, Any]] = None
+    response_style: Optional[str] = "balanced"  # concise | balanced | deep
 
 class BuildItem(BaseModel):
     title: str
@@ -1221,6 +1222,8 @@ class ClanPasscodeRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
+    voice: Optional[str] = ""
+    style: Optional[str] = ""
 
 
 class GodRollSuggestRequest(BaseModel):
@@ -1253,19 +1256,38 @@ def _pcm_to_wav(pcm_bytes: bytes, sample_rate: int = 24000, channels: int = 1, b
     return header + pcm_bytes
 
 
-def _synthesize_ghost_speech(text: str) -> bytes:
+_TTS_ALLOWED_VOICES = {
+    "Charon": "calm, crisp, deep futuristic male tactical AI Ghost voice with steady telemetry cadence",
+    "Fenrir": "commanding, authoritative Vanguard field commander male voice with tactical precision",
+    "Orus": "crisp, analytical Warmind synthetic male voice with clipped tactical delivery",
+    "Puck": "sharp, witty Hunter recon Ghost male voice with energetic tactical banter",
+    "Kore": "calm, precise futuristic AI construct voice with clean analytical clarity",
+}
+_tts_audio_cache: Dict[str, bytes] = {}
+_tts_cache_lock = threading.RLock()
+
+
+def _synthesize_ghost_speech(text: str, voice_name: str = "", style_hint: str = "") -> bytes:
     cfg = get_config()
     api_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY not configured for neural TTS.")
 
     tts_model = os.environ.get("GEMINI_TTS_MODEL") or "gemini-2.5-flash-preview-tts"
-    tts_voice = os.environ.get("GEMINI_TTS_VOICE") or "Charon"
+    req_voice = (voice_name or "").strip()
+    tts_voice = req_voice if req_voice in _TTS_ALLOWED_VOICES else (os.environ.get("GEMINI_TTS_VOICE") or "Charon")
+    voice_prompt = _TTS_ALLOWED_VOICES.get(tts_voice, _TTS_ALLOWED_VOICES["Charon"])
 
     cleaned = re.sub(r"[*_`#>\[\]]+", "", (text or "")).strip()
     cleaned = cleaned.replace("R.E.B.O.R.N.", "Reborn")[:1400]
     if not cleaned:
         raise ValueError("Empty text for speech synthesis.")
+
+    cache_key = hashlib.md5(f"{tts_voice}|{style_hint}|{cleaned}".encode("utf-8")).hexdigest()
+    with _tts_cache_lock:
+        hit = _tts_audio_cache.get(cache_key)
+        if hit is not None:
+            return hit
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{tts_model}:generateContent?key={api_key}"
     payload = {
@@ -1273,10 +1295,7 @@ def _synthesize_ghost_speech(text: str) -> bytes:
             {
                 "parts": [
                     {
-                        "text": (
-                            "Speak in a calm, crisp, futuristic male robotic tactical AI Ghost voice "
-                            "with steady telemetry cadence: " + cleaned
-                        )
+                        "text": f"Speak in a {voice_prompt}: {cleaned}"
                     }
                 ]
             }
@@ -1301,7 +1320,12 @@ def _synthesize_ghost_speech(text: str) -> bytes:
         if inline and inline.get("data"):
             raw = base64.b64decode(inline["data"])
             mime = (inline.get("mimeType") or inline.get("mime_type") or "").lower()
-            return raw if "wav" in mime else _pcm_to_wav(raw)
+            wav = raw if "wav" in mime else _pcm_to_wav(raw)
+            with _tts_cache_lock:
+                if len(_tts_audio_cache) >= 32:
+                    _tts_audio_cache.pop(next(iter(_tts_audio_cache)))
+                _tts_audio_cache[cache_key] = wav
+            return wav
     raise RuntimeError("Gemini TTS returned no audio payload.")
 
 
@@ -1330,7 +1354,7 @@ def verify_clan_passcode_endpoint(body: ClanPasscodeRequest):
 @app.post("/api/tts")
 async def tts_endpoint(req: TTSRequest):
     try:
-        wav_bytes = await run_in_threadpool(_synthesize_ghost_speech, req.text)
+        wav_bytes = await run_in_threadpool(_synthesize_ghost_speech, req.text, req.voice or "", req.style or "")
         return Response(content=wav_bytes, media_type="audio/wav")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -1436,7 +1460,15 @@ def _prepare_chat_context(req: ChatRequest) -> dict:
             f"• Operational Activity: {eff_activity}\n\n"
         )
 
+    style_directive = ""
+    r_style = (req.response_style or "balanced").strip().lower()
+    if r_style == "concise":
+        style_directive = "RESPONSE MODE: CONCISE CALLOUTS — Keep your answer ultra-crisp (max 5 short bullet points or 2 short paragraphs) optimized for quick mid-game voice comms.\n\n"
+    elif r_style == "deep":
+        style_directive = "RESPONSE MODE: DEEP TELEMETRY — Include exact percentages, cooldown math, perk synergies, and rotation steps from the Compendium.\n\n"
+
     enhanced_prompt = (
+        f"{style_directive}"
         f"{tactical_profile_block}"
         f"{inventory_block}"
         f"{verified_blueprint_context}"

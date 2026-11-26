@@ -14,10 +14,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v65">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v65">
-  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v65">
-  <link rel="modulepreload" href="app.js?v=20261126_v65">
+  <link rel="stylesheet" href="styles.css?v=20261126_v66">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v66">
+  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v66">
+  <link rel="modulepreload" href="app.js?v=20261126_v66">
 </head>
 <body class="theme-vanguard">
 
@@ -259,8 +259,28 @@
               <span class="channel-name">ENCRYPTED FIRETEAM COMMS // TACTICAL LIAISON</span>
             </div>
             <div class="terminal-actions">
+              <button type="button" class="btn-text-action btn-comms-stop hidden" id="btnCommsStopVoice" title="Stop R.E.B.O.R.N. voice playback">⏹ Stop Audio</button>
               <button class="btn-text-action" id="btnClearHistory" title="Clear chat history">Clear Screen</button>
             </div>
+          </div>
+
+          <!-- Voice Persona, Hands-Free Mode & AI Response Style Bar -->
+          <div class="comms-voice-bar" id="commsVoiceBar">
+            <select id="commsVoicePersona" class="comms-voice-select" aria-label="Select R.E.B.O.R.N. Neural Voice Persona" title="Select Neural Ghost Voice">
+              <option value="Charon">🤖 Voice: Charon (Ghost)</option>
+              <option value="Fenrir">⚔️ Voice: Fenrir (Commander)</option>
+              <option value="Orus">💠 Voice: Orus (Warmind)</option>
+              <option value="Puck">⚡ Voice: Puck (Recon)</option>
+              <option value="Kore">✦ Voice: Kore (Construct)</option>
+            </select>
+            <select id="commsResponseStyle" class="comms-voice-select" aria-label="Select AI Response Style" title="AI Response Detail Level">
+              <option value="balanced">🛠️ Balanced</option>
+              <option value="concise">⚡ Concise Callouts</option>
+              <option value="deep">📖 Deep Telemetry</option>
+            </select>
+            <button type="button" class="btn-comms-toggle active" id="btnCommsRadioFx" title="Toggle futuristic Ghost radio vocal filter">📻 Radio FX</button>
+            <button type="button" class="btn-comms-toggle" id="btnCommsAutoSpeak" title="Automatically speak every R.E.B.O.R.N. reply">🔊 Auto-Speak</button>
+            <button type="button" class="btn-comms-toggle" id="btnCommsHandsFree" title="Hands-Free Voice Mode: speak -> auto-send -> auto-reply -> auto-listen">🎙️ Hands-Free</button>
           </div>
 
           <!-- Messages Stream -->
@@ -288,6 +308,14 @@
           <div class="thinking-row hidden" id="thinkingIndicator">
             <div class="ghost-mini-core pulse"></div>
             <div class="thinking-text">R.E.B.O.R.N. is analyzing tactical manifests &amp; calculating telemetry...</div>
+          </div>
+
+          <!-- Tactical Quick-Prompt Chips -->
+          <div class="comms-quick-chips" id="commsQuickChips">
+            <button type="button" class="chip-prompt comms-quick-chip" data-prompt="Build me the highest boss DPS loadout out of what I currently own">⚡ Best DPS Build</button>
+            <button type="button" class="chip-prompt comms-quick-chip" data-prompt="Audit my currently equipped weapons and armor stats and tell me what to upgrade">★ Audit Equipped Gear</button>
+            <button type="button" class="chip-prompt comms-quick-chip" data-prompt="Clean my postmaster and pull my safe gear">📬 Pull Postmaster</button>
+            <button type="button" class="chip-prompt comms-quick-chip" data-prompt="What is the best 4-piece Armor Set Bonus I should farm for my active class?">🛡️ Best 4pc Armor Set</button>
           </div>
 
           <!-- Input Bar -->
@@ -1958,7 +1986,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v65"></script>
-  <script type="module" src="app.js?v=20261126_v65"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v66"></script>
+  <script type="module" src="app.js?v=20261126_v66"></script>
 </body>
 </html>

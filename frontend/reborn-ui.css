@@ -1403,3 +1403,105 @@ dialog.hud-modal .modal-footer {
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* AI Voice Persona Bar, Hands-Free Mode & Quick-Prompt Chips */
+.comms-voice-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--r-border);
+  background: rgba(9, 14, 26, 0.72);
+}
+
+.comms-voice-select {
+  min-height: 34px !important;
+  font-size: 12px !important;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.9);
+  color: #E2E8F0;
+  font-family: var(--r-font-tactical);
+  font-weight: 600;
+}
+
+.btn-comms-toggle {
+  min-height: 34px !important;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  background: rgba(15, 23, 42, 0.75);
+  color: var(--r-text-muted);
+  font-family: var(--r-font-tactical);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.btn-comms-toggle.active {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(56, 189, 248, 0.18);
+  color: #E0F2FE;
+}
+
+#btnCommsHandsFree.active {
+  border-color: rgba(16, 185, 129, 0.75);
+  background: rgba(16, 185, 129, 0.2);
+  color: #D1FAE5;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.28);
+}
+
+.btn-comms-stop {
+  color: #FCA5A5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.5) !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-radius: 999px;
+  padding: 4px 10px !important;
+  min-height: 30px !important;
+}
+
+.comms-quick-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 8px 12px 4px 12px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.comms-quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.comms-quick-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 32px !important;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: rgba(15, 23, 42, 0.8);
+  color: #CBD5E1;
+  font-family: var(--r-font-tactical);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.comms-quick-chip:hover {
+  border-color: var(--r-cyan);
+  background: rgba(56, 189, 248, 0.16);
+  color: #FFFFFF;
+}
+
+.btn-mic.recording {
+  border-color: #10B981 !important;
+  background: rgba(16, 185, 129, 0.24) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
+}

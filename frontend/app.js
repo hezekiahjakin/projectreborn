@@ -38,6 +38,11 @@ const state = {
   shader: 'solar',       // 'stasis', 'void', 'arc', 'solar', 'strand', 'prismatic'
   soundEnabled: true,
   autoSpeak: false,
+  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice')) || 'Charon',
+  voiceRadioFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_radio_fx')) !== 'false',
+  handsFreeVoice: false,
+  responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
+  isListening: false,
   voiceRate: 1.02,
   voicePitch: 0.84,
   selectedVoice: null,
@@ -415,6 +420,27 @@ class RoboticGhostVoiceEngine {
       || null;
   }
 
+  getAudioLevel() {
+    if (!state.isSpeaking || !this._analyser || !this._analyserData) return 0;
+    try {
+      this._analyser.getByteTimeDomainData(this._analyserData);
+      let sum = 0;
+      for (let i = 0; i < this._analyserData.length; i++) {
+        const v = (this._analyserData[i] - 128) / 128;
+        sum += v * v;
+      }
+      return Math.min(1, Math.sqrt(sum / this._analyserData.length) * 3.8);
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  _setSpeakingUi(active) {
+    state.isSpeaking = active;
+    const stopBtn = document.getElementById('btnCommsStopVoice');
+    if (stopBtn) stopBtn.classList.toggle('hidden', !active);
+  }
+
   async playNeuralGhostAudio(arrayBuffer) {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) throw new Error('Web Audio API unavailable');
@@ -429,46 +455,62 @@ class RoboticGhostVoiceEngine {
     src.buffer = audioBuffer;
     src.playbackRate.value = Math.max(0.8, Math.min(1.25, state.voiceRate || 1.02));
 
-    // Futuristic Robotic Ghost Radio + Metallic Comb FX Chain
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 260;
-
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 3800;
-
-    const delay = ctx.createDelay(0.1);
-    delay.delayTime.value = 0.016; // 16ms subtle robotic metallic shimmer
-    const wetGain = ctx.createGain();
-    wetGain.gain.value = 0.16;
-    const dryGain = ctx.createGain();
-    dryGain.gain.value = 0.92;
-
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -18;
     comp.ratio.value = 4;
 
-    src.connect(hp);
-    hp.connect(lp);
-    lp.connect(dryGain);
-    lp.connect(delay);
-    delay.connect(wetGain);
-    dryGain.connect(comp);
-    wetGain.connect(comp);
-    comp.connect(ctx.destination);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    this._analyser = analyser;
+    this._analyserData = new Uint8Array(analyser.frequencyBinCount);
 
-    state.isSpeaking = true;
+    if (state.voiceRadioFx !== false) {
+      // Futuristic Robotic Ghost Radio + Metallic Comb FX Chain
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 250;
+
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 4100;
+
+      const delay = ctx.createDelay(0.1);
+      delay.delayTime.value = 0.015;
+      const wetGain = ctx.createGain();
+      wetGain.gain.value = 0.15;
+      const dryGain = ctx.createGain();
+      dryGain.gain.value = 0.93;
+
+      src.connect(hp);
+      hp.connect(lp);
+      lp.connect(dryGain);
+      lp.connect(delay);
+      delay.connect(wetGain);
+      dryGain.connect(comp);
+      wetGain.connect(comp);
+    } else {
+      src.connect(comp);
+    }
+
+    comp.connect(analyser);
+    analyser.connect(ctx.destination);
+
+    this._setSpeakingUi(true);
     this.playCommsTone(true);
-    updateConstructMood('TRANSMITTING AUDIO // NEURAL GHOST RELAY');
+    updateConstructMood(`TRANSMITTING // ${(state.neuralVoice || 'CHARON').toUpperCase()} NEURAL GHOST`);
 
     return new Promise((resolve) => {
       src.onended = () => {
-        state.isSpeaking = false;
+        this._setSpeakingUi(false);
+        this._analyser = null;
+        this._analyserData = null;
         this.playCommsTone(false);
         updateConstructMood('STATUS: STANDBY // SCANNING');
         ctx.close().catch(() => {});
         if (this._activeAudioCtx === ctx) this._activeAudioCtx = null;
+        if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
+          setTimeout(() => window.__startHandsFreeMic(), 450);
+        }
         resolve();
       };
       src.start(0);
@@ -491,11 +533,15 @@ class RoboticGhostVoiceEngine {
 
     if (!cleanText) return;
 
-    // 1. Try studio-grade Gemini Neural Male Ghost TTS + Web Audio FX first
+    // 1. Try studio-grade Gemini Neural Ghost TTS + Web Audio FX first
     fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: cleanText }),
+      body: JSON.stringify({
+        text: cleanText,
+        voice: state.neuralVoice || 'Charon',
+        style: state.voiceRadioFx ? 'radio' : 'clean',
+      }),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Neural TTS unavailable');
@@ -520,32 +566,37 @@ class RoboticGhostVoiceEngine {
         }
 
         utter.onstart = () => {
-          state.isSpeaking = true;
+          this._setSpeakingUi(true);
           this.playCommsTone(true);
           updateConstructMood('TRANSMITTING AUDIO // ROBOTIC GHOST RELAY');
         };
         utter.onend = () => {
-          state.isSpeaking = false;
+          this._setSpeakingUi(false);
           this.playCommsTone(false);
           updateConstructMood('STATUS: STANDBY // SCANNING');
+          if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
+            setTimeout(() => window.__startHandsFreeMic(), 450);
+          }
         };
         utter.onerror = () => {
-          state.isSpeaking = false;
+          this._setSpeakingUi(false);
           updateConstructMood('STATUS: STANDBY // SCANNING');
         };
         window.speechSynthesis.speak(utter);
       });
   }
 
-    stop() {
+  stop() {
     if (this._activeAudioCtx) {
       try { this._activeAudioCtx.close(); } catch (_) {}
       this._activeAudioCtx = null;
     }
+    this._analyser = null;
+    this._analyserData = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
-    state.isSpeaking = false;
+    this._setSpeakingUi(false);
   }
 }
 
@@ -621,15 +672,18 @@ class GhostCanvasRenderer {
     const bob = Math.sin(this.time * 1.5) * 6;
     const centerY = cy + bob;
 
-    // Expansion pulse when thinking or speaking
+    // Audio-reactive expansion pulse when thinking, listening, or speaking
     let flare = 0;
+    const audioLvl = typeof voice?.getAudioLevel === 'function' ? voice.getAudioLevel() : 0;
     if (state.isThinking) {
       flare = Math.sin(this.time * 8) * 8 + 4;
     } else if (state.isSpeaking) {
-      flare = Math.sin(this.time * 12) * 5 + 2;
+      flare = audioLvl > 0.01 ? (audioLvl * 18 + 3) : (Math.sin(this.time * 12) * 5 + 2);
+    } else if (state.isListening) {
+      flare = Math.sin(this.time * 9) * 5 + 4;
     }
 
-    // 1. Ambient Background Halo
+    // 1. Ambient Background Halo + Audio-Reactive Telemetry Wave Ring
     const grad = this.ctx.createRadialGradient(cx, centerY, 10, cx, centerY, 110 + flare * 2);
     grad.addColorStop(0, palette.glow);
     grad.addColorStop(1, 'transparent');
@@ -637,6 +691,18 @@ class GhostCanvasRenderer {
     this.ctx.beginPath();
     this.ctx.arc(cx, centerY, 110 + flare * 2, 0, Math.PI * 2);
     this.ctx.fill();
+
+    if (state.isSpeaking || state.isListening) {
+      this.ctx.save();
+      const ringRadius = 92 + (state.isSpeaking ? audioLvl * 26 : Math.sin(this.time * 10) * 6);
+      this.ctx.strokeStyle = state.isListening ? 'rgba(16, 185, 129, 0.72)' : 'rgba(56, 189, 248, 0.75)';
+      this.ctx.lineWidth = state.isSpeaking ? (2 + audioLvl * 3.5) : 2.5;
+      this.ctx.setLineDash([12, 6]);
+      this.ctx.beginPath();
+      this.ctx.arc(cx, centerY, ringRadius, this.time * 1.4, this.time * 1.4 + Math.PI * 2);
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
 
     // 2. Tactical Ghost Shell Wings (8 tetrahedral diamond facets)
     const baseDist = 52 + flare;
@@ -1151,6 +1217,7 @@ async function sendChatMessage(userText) {
     message: text,
     history: state.chatHistory.slice(-10),
     inventory_context: buildChatInventoryContext(),
+    response_style: state.responseStyle || 'balanced',
   };
 
   let streamedRow = null;
@@ -2151,55 +2218,167 @@ function initFieldAdvisoryModal() {
 function initSpeechRecognition() {
   const micBtn = document.getElementById('btnVoiceInput');
   const chatInput = document.getElementById('chatInput');
+
+  // Wire AI Comms Voice Bar Controls (works in all browsers regardless of SpeechRecognition support)
+  const personaSel = document.getElementById('commsVoicePersona');
+  const styleSel = document.getElementById('commsResponseStyle');
+  const btnRadioFx = document.getElementById('btnCommsRadioFx');
+  const btnAutoSpeak = document.getElementById('btnCommsAutoSpeak');
+  const btnHandsFree = document.getElementById('btnCommsHandsFree');
+  const btnStopVoice = document.getElementById('btnCommsStopVoice');
+
+  if (personaSel) {
+    personaSel.value = state.neuralVoice || 'Charon';
+    personaSel.addEventListener('change', () => {
+      state.neuralVoice = personaSel.value || 'Charon';
+      try { localStorage.setItem('reborn_neural_voice', state.neuralVoice); } catch (_) {}
+      sfx.playChirp();
+      showToast(`🤖 Ghost Voice switched to ${state.neuralVoice}`, 'info');
+    });
+  }
+
+  if (styleSel) {
+    styleSel.value = state.responseStyle || 'balanced';
+    styleSel.addEventListener('change', () => {
+      state.responseStyle = styleSel.value || 'balanced';
+      try { localStorage.setItem('reborn_response_style', state.responseStyle); } catch (_) {}
+      sfx.playChirp();
+    });
+  }
+
+  if (btnRadioFx) {
+    btnRadioFx.classList.toggle('active', state.voiceRadioFx !== false);
+    btnRadioFx.addEventListener('click', () => {
+      state.voiceRadioFx = !state.voiceRadioFx;
+      try { localStorage.setItem('reborn_radio_fx', String(state.voiceRadioFx)); } catch (_) {}
+      btnRadioFx.classList.toggle('active', state.voiceRadioFx);
+      sfx.playChirp();
+      showToast(state.voiceRadioFx ? '📻 Ghost Radio FX Enabled' : '🎧 Clean Studio Neural Voice Enabled', 'info');
+    });
+  }
+
+  if (btnAutoSpeak) {
+    btnAutoSpeak.classList.toggle('active', Boolean(state.autoSpeak));
+    btnAutoSpeak.addEventListener('click', () => {
+      state.autoSpeak = !state.autoSpeak;
+      btnAutoSpeak.classList.toggle('active', state.autoSpeak);
+      const settingsChk = document.getElementById('checkAutoSpeak');
+      if (settingsChk) settingsChk.checked = state.autoSpeak;
+      sfx.playChirp();
+      showToast(state.autoSpeak ? '🔊 Auto-Speak Enabled' : '🔇 Auto-Speak Off', 'info');
+    });
+  }
+
+  if (btnStopVoice) {
+    btnStopVoice.addEventListener('click', () => {
+      voice.stop();
+      sfx.playChirp();
+    });
+  }
+
   if (!micBtn || !chatInput) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     micBtn.title = "Speech recognition is not supported in this browser.";
+    if (btnHandsFree) {
+      btnHandsFree.disabled = true;
+      btnHandsFree.title = "Hands-Free requires browser Speech Recognition (Chrome / Edge / Safari).";
+    }
     return;
   }
 
   const recognizer = new SpeechRecognition();
   recognizer.continuous = false;
-  recognizer.interimResults = false;
-  recognizer.lang = 'en-US'; // Tactical voice input
+  recognizer.interimResults = true;
+  recognizer.lang = 'en-US';
 
   let isListening = false;
+
+  const startMic = () => {
+    if (isListening || state.isThinking || state.isSpeaking) return;
+    try {
+      voice.stop();
+      recognizer.start();
+      isListening = true;
+      state.isListening = true;
+      micBtn.classList.add('recording');
+      updateConstructMood('LISTENING // LIVE VOICE STREAM');
+    } catch (_) {}
+  };
+
+  const stopMic = () => {
+    try { recognizer.stop(); } catch (_) {}
+    isListening = false;
+    state.isListening = false;
+    micBtn.classList.remove('recording');
+  };
+
+  window.__startHandsFreeMic = startMic;
 
   micBtn.addEventListener('click', () => {
     sfx.playChirp();
     if (!isListening) {
-      try {
-        recognizer.start();
-        isListening = true;
-        micBtn.classList.add('recording');
-        updateConstructMood('LISTENING // VOICE INPUT CAPTURE');
-      } catch (e) {}
+      startMic();
     } else {
-      recognizer.stop();
-      isListening = false;
-      micBtn.classList.remove('recording');
+      stopMic();
       updateConstructMood('STATUS: STANDBY // SCANNING');
     }
   });
 
+  if (btnHandsFree) {
+    btnHandsFree.addEventListener('click', () => {
+      state.handsFreeVoice = !state.handsFreeVoice;
+      btnHandsFree.classList.toggle('active', state.handsFreeVoice);
+      if (state.handsFreeVoice) {
+        state.autoSpeak = true;
+        btnAutoSpeak?.classList.add('active');
+        const settingsChk = document.getElementById('checkAutoSpeak');
+        if (settingsChk) settingsChk.checked = true;
+        sfx.playChirp();
+        showToast('🎙️ Hands-Free Ghost Comms Active — speak anytime!', 'info');
+        startMic();
+      } else {
+        stopMic();
+        voice.stop();
+        showToast('Hands-Free Voice Mode paused.', 'info');
+      }
+    });
+  }
+
   recognizer.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-    chatInput.value = transcript;
-    micBtn.classList.remove('recording');
-    isListening = false;
-    updateConstructMood('VOICE CAPTURED // READY TO TRANSMIT');
+    let interimText = '';
+    let finalText = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const t = event.results[i][0]?.transcript || '';
+      if (event.results[i].isFinal) finalText += t;
+      else interimText += t;
+    }
+    const combined = (finalText || interimText).trim();
+    if (combined) chatInput.value = combined;
+
+    if (finalText.trim()) {
+      stopMic();
+      updateConstructMood('VOICE CAPTURED // TRANSMITTING');
+      if (state.handsFreeVoice) {
+        const toSend = finalText.trim();
+        chatInput.value = '';
+        sendChatMessage(toSend);
+      } else {
+        updateConstructMood('VOICE CAPTURED // READY TO TRANSMIT');
+      }
+    }
   };
 
   recognizer.onerror = () => {
-    micBtn.classList.remove('recording');
-    isListening = false;
+    stopMic();
     updateConstructMood('STATUS: STANDBY // SCANNING');
   };
 
   recognizer.onend = () => {
-    micBtn.classList.remove('recording');
     isListening = false;
+    state.isListening = false;
+    micBtn.classList.remove('recording');
   };
 }
 
