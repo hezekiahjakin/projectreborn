@@ -2061,6 +2061,36 @@ function promptSecurityClearance(action, subtitle, desc) {
   }
 }
 
+let ghost3DAvatar = null;
+let ghost3DLoading = false;
+
+async function ensureGhost3DAvatarRunning() {
+  const wrapper = document.getElementById('constructWrapper');
+  if (!wrapper) return;
+  if (ghost3DAvatar) {
+    ghost3DAvatar.start();
+    return;
+  }
+  if (ghost3DLoading) return;
+  ghost3DLoading = true;
+  try {
+    const mod = await import('./ghost-3d.js?v=20261126_v69');
+    if (mod?.DestinyGhost3DAvatar) {
+      ghost3DAvatar = new mod.DestinyGhost3DAvatar(
+        wrapper,
+        () => state,
+        () => (typeof voice?.getAudioLevel === 'function' ? voice.getAudioLevel() : 0),
+        () => { sfx.playChirp(); }
+      );
+      ghost3DAvatar.start();
+    }
+  } catch (err) {
+    console.warn('[Ghost3D] Falling back to 2D canvas construct:', err);
+  } finally {
+    ghost3DLoading = false;
+  }
+}
+
 function openGhostCommsDrawer() {
   const commsPane = document.getElementById('tab-comms');
   const backdrop = document.getElementById('ghostDrawerBackdrop');
@@ -2073,6 +2103,7 @@ function openGhostCommsDrawer() {
     const lbl = fab.querySelector('.reborn-fab-label');
     if (lbl) lbl.textContent = 'Close Ghost';
   }
+  ensureGhost3DAvatarRunning();
   const messagesContainer = document.getElementById('messagesContainer');
   if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
   setTimeout(() => document.getElementById('chatInput')?.focus(), 80);
@@ -2089,6 +2120,7 @@ function closeGhostCommsDrawer() {
     const lbl = fab.querySelector('.reborn-fab-label');
     if (lbl) lbl.textContent = 'Ask Ghost';
   }
+  if (ghost3DAvatar) ghost3DAvatar.stop();
 }
 
 function toggleGhostCommsDrawer() {
