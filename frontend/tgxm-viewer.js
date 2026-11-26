@@ -1,5 +1,5 @@
 /**
- * F.E.L.I.C.I.A. Native Bungie 3D Engine (TGXM + Destiny Dye Shader Pipeline)
+ * R.E.B.O.R.N. Native Bungie 3D Engine (TGXM + Destiny Dye Shader Pipeline)
  *
  * Renders the same mobile 3D assets the official Destiny 2 companion app uses
  * (DestinyGearAssetsDefinition -> .tgxm geometry, .tgxm.bin textures, gear/*.js dyes)

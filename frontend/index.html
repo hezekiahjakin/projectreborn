@@ -2,17 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>F.E.L.I.C.I.A. // Tactical Fireteam Construct</title>
-  <meta name="description" content="Fireteam Evaluation & Logistics Intelligence Construct for Interactive Analysis - Destiny 2 AI Assistant">
-  <meta name="theme-color" content="#0B0E14">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>R.E.B.O.R.N. // Recon, Engagement & Battlefield Optimization Relay Node</title>
+  <meta name="description" content="Recon, Engagement & Battlefield Optimization Relay Node - Destiny 2 AI Assistant">
+  <meta name="theme-color" content="#050810">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="icon" type="image/png" href="icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261118_v57">
+  <link rel="stylesheet" href="styles.css?v=20261126_v58">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v58">
 </head>
 <body class="theme-vanguard">
 
@@ -24,11 +27,11 @@
       </div>
       <div class="brand-text">
         <h1 class="brand-title">
-          F.E.L.I.C.I.A.
-          <span class="badge-v1">v3.0</span>
+          R.E.B.O.R.N.
+          <span class="badge-v1">v3.1</span>
           <span class="pulse-dot" title="Construct Calibrated &amp; Online"></span>
         </h1>
-        <p class="brand-sub">FIRETEAM EVALUATION &amp; LOGISTICS INTELLIGENCE CONSTRUCT FOR INTERACTIVE ANALYSIS</p>
+        <p class="brand-sub">RECON, ENGAGEMENT &amp; BATTLEFIELD OPTIMIZATION RELAY NODE</p>
       </div>
     </div>
 
@@ -94,7 +97,7 @@
             <div class="signin-eyebrow">VANGUARD ORBITAL TELEMETRY // BUNGIE.NET LINK</div>
             <h2 class="signin-title">CONNECT YOUR GUARDIAN INVENTORY &amp; VAULT</h2>
             <p class="signin-subtitle">
-              Sign in through Bungie.net to inspect all 3 of your characters, move weapons and armor seamlessly to and from your Vault, and let <strong>F.E.L.I.C.I.A.</strong> evaluate any drop for PVE &amp; PVP God Rolls.
+              Sign in through Bungie.net to inspect all 3 of your characters, move weapons and armor seamlessly to and from your Vault, and let <strong>R.E.B.O.R.N.</strong> evaluate any drop for PVE &amp; PVP God Rolls.
             </p>
 
             <div class="signin-cta-wrap">
@@ -118,7 +121,7 @@
               </div>
               <div class="signin-feat-box highlight">
                 <div class="feat-icon">❖</div>
-                <h4>Ask F.E.L.I.C.I.A.</h4>
+                <h4>Ask R.E.B.O.R.N.</h4>
                 <p>Scan your entire Inventory &amp; Vault for PVE and PVP God Rolls and lock them all in one click.</p>
               </div>
             </div>
@@ -248,12 +251,12 @@
               </div>
               <div class="msg-bubble">
                 <div class="msg-header">
-                  <span class="msg-sender">F.E.L.I.C.I.A.</span>
-                  <span class="msg-tag">SCOTTISH CONSTRUCT</span>
-                  <button class="btn-voice-play" title="Listen to Scottish Voice">🗣️ Listen</button>
+                  <span class="msg-sender">R.E.B.O.R.N.</span>
+                  <span class="msg-tag">TACTICAL GHOST RELAY</span>
+                  <button class="btn-voice-play" title="Listen to R.E.B.O.R.N. (Robotic Ghost Voice)">🗣️ Listen</button>
                 </div>
                 <div class="msg-content">
-                  All right, Guardian. F.E.L.I.C.I.A. online and calibrated. Diagnostics are green across the board and systems are running clean.<br><br>
+                  Uplink established, Guardian. R.E.B.O.R.N. — Recon, Engagement &amp; Battlefield Optimization Relay Node — is online and locked to your telemetry. All combat diagnostics are green.<br><br>
                   Whether you need advice on fine-tuning a Grandmaster build, tracking down exotic catalysts ('catties'), or reviewing your fireteam's damage rotations, I am here to sort it out. No nonsense—tell me what we are tackling today!
                 </div>
               </div>
@@ -263,15 +266,15 @@
           <!-- Typing / Thinking Indicator -->
           <div class="thinking-row hidden" id="thinkingIndicator">
             <div class="ghost-mini-core pulse"></div>
-            <div class="thinking-text">F.E.L.I.C.I.A. is analyzing tactical manifests &amp; calculating telemetry...</div>
+            <div class="thinking-text">R.E.B.O.R.N. is analyzing tactical manifests &amp; calculating telemetry...</div>
           </div>
 
           <!-- Input Bar -->
           <form class="chat-input-bar" id="chatForm">
-            <button type="button" class="btn-mic" id="btnVoiceInput" title="Speak to F.E.L.I.C.I.A. (Microphone)">
+            <button type="button" class="btn-mic" id="btnVoiceInput" title="Speak to R.E.B.O.R.N. (Microphone)">
               <span class="mic-icon">🎙️</span>
             </button>
-            <input type="text" id="chatInput" class="input-chat" placeholder="Ask F.E.L.I.C.I.A. about builds, catalysts, raid tactics, or weapons..." autocomplete="off">
+            <input type="text" id="chatInput" class="input-chat" placeholder="Ask R.E.B.O.R.N. about builds, catalysts, raid tactics, or weapons..." autocomplete="off">
             <button type="submit" class="btn-send" id="btnSend">
               <span class="send-text">TRANSMIT</span>
               <span class="send-arrow">➔</span>
@@ -290,7 +293,7 @@
         <div class="wiki-header-card">
           <div class="wiki-title-group">
             <h2 class="section-title">DESTINY 2 TACTICAL GUIDES &amp; ARCHIVES</h2>
-            <p class="section-sub">Clan tactical guides, gun stats, armor set bonuses, catalyst walkthroughs, and verified blueprints. F.E.L.I.C.I.A. automatically incorporates these into her live tactical calculations!</p>
+            <p class="section-sub">Clan tactical guides, gun stats, armor set bonuses, catalyst walkthroughs, and verified blueprints. R.E.B.O.R.N. automatically incorporates these into her live tactical calculations!</p>
           </div>
           <div class="wiki-actions">
             <button type="button" class="btn-tactical btn-secondary" id="btnOpenYoutubeWiki">
@@ -387,7 +390,7 @@
         <div class="vault-header-card">
           <div class="vault-header-titles">
             <h2 class="section-title">🎯 GOD ROLL FINDER</h2>
-            <p class="section-sub">Search meta Destiny 2 weapons, inspect verified PVE and PVP God Rolls, and consult F.E.L.I.C.I.A. on weapon perk synergy.</p>
+            <p class="section-sub">Search meta Destiny 2 weapons, inspect verified PVE and PVP God Rolls, and consult R.E.B.O.R.N. on weapon perk synergy.</p>
           </div>
           <div class="vault-header-actions">
             <button class="btn-tactical btn-secondary" id="btnOpenAddGodRoll">
@@ -466,7 +469,7 @@
         <!-- Construct Design Selector -->
         <div class="settings-card">
           <h3 class="card-title">✦ CONSTRUCT AVATAR &amp; VISUAL DESIGN</h3>
-          <p class="card-desc">Choose F.E.L.I.C.I.A.'s visual appearance. For V1, the Vanguard Tactical Ghost is active by default.</p>
+          <p class="card-desc">Choose R.E.B.O.R.N.'s visual appearance. For V1, the Vanguard Tactical Ghost is active by default.</p>
           
           <div class="design-picker">
             <div class="design-card active" data-design="ghost">
@@ -501,14 +504,14 @@
           </div>
         </div>
 
-        <!-- Voice & Scottish Dialect Settings -->
+        <!-- Voice & Robotic Ghost Speech Settings -->
         <div class="settings-card">
-          <h3 class="card-title">✦ AUDIO &amp; SCOTTISH VOICE ENGINE</h3>
+          <h3 class="card-title">✦ AUDIO &amp; ROBOTIC GHOST VOICE ENGINE</h3>
           <div class="form-row">
             <div class="form-group flex-1">
-              <label>SPEECH SYNTHESIS VOICE (SCOTTISH / UK PREFERRED)</label>
+              <label>SPEECH SYNTHESIS VOICE (MALE ROBOTIC GHOST PREFERRED)</label>
               <select id="voiceSelect" class="input-tactical select-tactical">
-                <option value="auto">Auto-detect Scottish / UK Voice</option>
+                <option value="auto">Auto-detect Male Robotic Ghost Voice</option>
               </select>
             </div>
             <div class="form-group">
@@ -522,11 +525,11 @@
           <div class="form-row">
             <div class="form-group flex-1">
               <label>VOICE RATE: <span id="rateVal">1.0</span>x</label>
-              <input type="range" id="voiceRate" min="0.7" max="1.3" step="0.05" value="1.0" class="range-slider">
+              <input type="range" id="voiceRate" min="0.7" max="1.35" step="0.05" value="1.02" class="range-slider">
             </div>
             <div class="form-group flex-1">
               <label>VOICE PITCH: <span id="pitchVal">1.05</span></label>
-              <input type="range" id="voicePitch" min="0.8" max="1.3" step="0.05" value="1.05" class="range-slider">
+              <input type="range" id="voicePitch" min="0.55" max="1.25" step="0.05" value="0.84" class="range-slider">
             </div>
           </div>
         </div>
@@ -537,7 +540,7 @@
             <h3 class="card-title">✦ FIREBASE BACKEND // PING-VAULT-MATRIX</h3>
             <span class="badge-cat" id="badgeProjectActive">ACTIVE: ping-vault-matrix</span>
           </div>
-          <p class="card-desc"><strong>Host Setup:</strong> Enter your Firebase Web App credentials once here. F.E.L.I.C.I.A. will automatically distribute this project config to all fireteam members on your network (phones, iPads, and PCs)—members simply sign in with their own account and never have to touch an API key!</p>
+          <p class="card-desc"><strong>Host Setup:</strong> Enter your Firebase Web App credentials once here. R.E.B.O.R.N. will automatically distribute this project config to all fireteam members on your network (phones, iPads, and PCs)—members simply sign in with their own account and never have to touch an API key!</p>
           
           <div class="form-row">
             <div class="form-group flex-1">
@@ -564,7 +567,7 @@
 npx -y firebase-tools@latest login
 
 # 2. Register Web App in ping-vault-matrix
-npx -y firebase-tools@latest apps:create web felicia-web --project ping-vault-matrix
+npx -y firebase-tools@latest apps:create web reborn-web --project ping-vault-matrix
 
 # 3. Retrieve Web SDK Config
 npx -y firebase-tools@latest apps:sdkconfig WEB --project ping-vault-matrix
@@ -578,7 +581,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <!-- Gemini API Engine -->
         <div class="settings-card">
           <h3 class="card-title">✦ GEMINI AI CORE ENGINE</h3>
-          <p class="card-desc">F.E.L.I.C.I.A. utilizes Gemini models with an automatic resilience cascade: Primary <code>gemini-3.8-flash</code> &rarr; <code>gemini-3.5-flash</code> for zero-latency, high-availability answers.</p>
+          <p class="card-desc">R.E.B.O.R.N. utilizes Gemini models with an automatic resilience cascade: Primary <code>gemini-3.8-flash</code> &rarr; <code>gemini-3.5-flash</code> for zero-latency, high-availability answers.</p>
           
           <div class="form-group">
             <label>GEMINI API KEY</label>
@@ -595,7 +598,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <h3 class="card-title">✦ BUNGIE.NET INVENTORY &amp; OAUTH ENGINE</h3>
             <span class="badge-cat" id="badgeBungieConfigStatus">CHECKING...</span>
           </div>
-          <p class="card-desc">Powers Clan Guardian sign-in, 3-Character loadout viewing, 700-slot Vault transfers, and live perk reading for <strong>Ask F.E.L.I.C.I.A.</strong></p>
+          <p class="card-desc">Powers Clan Guardian sign-in, 3-Character loadout viewing, 700-slot Vault transfers, and live perk reading for <strong>Ask R.E.B.O.R.N.</strong></p>
 
           <div class="form-row">
             <div class="form-group flex-1">
@@ -632,7 +635,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
           <div class="saved-loadout-title-wrap" style="flex:1; min-width:220px;">
             <div class="scanner-eyebrow" id="lbSubtitle">❖ VANGUARD DIM TACTICAL LOADOUT BUILDER // AI BUILD &amp; STAT OPTIMIZER</div>
             <div class="lb-title-input-row">
-              <input type="text" id="lbLoadoutNameInput" class="lb-name-input" value="F.E.L.I.C.I.A. Tactical Build" placeholder="Enter Loadout Name...">
+              <input type="text" id="lbLoadoutNameInput" class="lb-name-input" value="R.E.B.O.R.N. Tactical Build" placeholder="Enter Loadout Name...">
             </div>
           </div>
           <div class="lb-page-header-nav">
@@ -815,7 +818,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       <div class="modal-header">
         <div class="modal-title-group">
           <h3 class="modal-title">📺 YOUTUBE VIDEO &rarr; READABLE GUIDE</h3>
-          <span class="modal-sub">Paste any Destiny 2 YouTube guide to convert it into a structured F.E.L.I.C.I.A. guide</span>
+          <span class="modal-sub">Paste any Destiny 2 YouTube guide to convert it into a structured R.E.B.O.R.N. guide</span>
         </div>
         <button type="button" class="btn-modal-close" id="btnCloseYoutubeWiki">&times;</button>
       </div>
@@ -1243,7 +1246,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <button class="btn-modal-close" id="btnCloseConnect">&times;</button>
       </div>
       <div class="modal-body text-center">
-        <p class="qr-instructions">Scan this QR code with your iPhone or iPad camera to launch F.E.L.I.C.I.A. instantly:</p>
+        <p class="qr-instructions">Scan this QR code with your iPhone or iPad camera to launch R.E.B.O.R.N. instantly:</p>
         
         <div class="qr-container">
           <img id="qrImage" src="" alt="Mobile QR Code" class="qr-code-img">
@@ -1527,13 +1530,13 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="article-content" id="viewWikiContent"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn-tactical btn-secondary" id="btnAskFeliciaAboutWiki">🗣️ Ask F.E.L.I.C.I.A. About This</button>
+        <button class="btn-tactical btn-secondary" id="btnAskRebornAboutWiki">🗣️ Ask R.E.B.O.R.N. About This</button>
         <button class="btn-tactical btn-primary" id="btnDismissViewWiki">Close</button>
       </div>
     </div>
   </dialog>
 
-  <!-- MODAL: ITEM INSPECTION, TRANSFERS & ASK F.E.L.I.C.I.A. -->
+  <!-- MODAL: ITEM INSPECTION, TRANSFERS & ASK R.E.B.O.R.N. -->
   <dialog class="hud-modal modal-inspect-item" id="modalInspectItem" closedby="any" aria-labelledby="inspectItemName">
     <div class="modal-content inspect-modal-content">
       <div class="inspect-banner" id="inspectBanner">
@@ -1589,29 +1592,29 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
           </div>
         </div>
 
-        <!-- ACTION BAR: SEND TO HUNTER / WARLOCK / TITAN / VAULT + 4TH BUTTON: ASK F.E.L.I.C.I.A. -->
+        <!-- ACTION BAR: SEND TO HUNTER / WARLOCK / TITAN / VAULT + 4TH BUTTON: ASK R.E.B.O.R.N. -->
         <div class="inspect-actions-section">
           <div class="inspect-section-label">TRANSFER &amp; TACTICAL ACTIONS</div>
           <div class="inspect-actions-grid" id="inspectActionsGrid">
-            <!-- Dynamically populated: Character transfer buttons, Vault button, Equip button, and "Ask F.E.L.I.C.I.A." -->
+            <!-- Dynamically populated: Character transfer buttons, Vault button, Equip button, and "Ask R.E.B.O.R.N." -->
           </div>
           <div class="inspect-transfer-feedback hidden" id="inspectTransferFeedback"></div>
         </div>
 
-        <!-- F.E.L.I.C.I.A. LIVE ROLL REVIEW PANEL (REVEALED ON CLICKING "ASK F.E.L.I.C.I.A.") -->
-        <div class="inspect-felicia-panel hidden" id="inspectFeliciaPanel">
+        <!-- R.E.B.O.R.N. LIVE ROLL REVIEW PANEL (REVEALED ON CLICKING "ASK R.E.B.O.R.N.") -->
+        <div class="inspect-felicia-panel hidden" id="inspectRebornPanel">
           <div class="felicia-review-header">
             <div class="felicia-review-title">
               <span class="felicia-orb-dot">❖</span>
-              <span>F.E.L.I.C.I.A. // ROLL &amp; GEAR EVALUATION</span>
+              <span>R.E.B.O.R.N. // ROLL &amp; GEAR EVALUATION</span>
             </div>
             <div class="felicia-review-controls">
               <span class="godroll-verdict-pill hidden" id="inspectVerdictPill">EVALUATING</span>
-              <button type="button" class="btn-mini-action" id="btnSpeakAppraisal" title="Hear F.E.L.I.C.I.A. read this review">🔊 Speak</button>
+              <button type="button" class="btn-mini-action" id="btnSpeakAppraisal" title="Hear R.E.B.O.R.N. read this review">🔊 Speak</button>
               <button type="button" class="btn-mini-action" id="btnOpenInComms" title="Continue discussion in AI Chat">💬 Open in Chat</button>
             </div>
           </div>
-          <div class="felicia-review-body" id="inspectFeliciaBody">
+          <div class="felicia-review-body" id="inspectRebornBody">
             <!-- Populated with markdown-formatted PVE / PVP / Shard verdict -->
           </div>
         </div>
@@ -1636,7 +1639,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     </div>
   </dialog>
 
-  <!-- MODAL: F.E.L.I.C.I.A. INVENTORY & VAULT GOD ROLL SCANNER -->
+  <!-- MODAL: R.E.B.O.R.N. INVENTORY & VAULT GOD ROLL SCANNER -->
   <dialog class="hud-modal modal-godroll-scanner" id="modalGodRollScanner" closedby="any" aria-labelledby="scannerModalTitle">
     <div class="modal-content scanner-modal-content">
       <div class="scanner-header">
@@ -1644,7 +1647,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
           <div class="scanner-orb-badge">❖</div>
           <div>
             <div class="scanner-eyebrow">VANGUARD ARSENAL TELEMETRY // PVE &amp; PVP SWEEP</div>
-            <h3 class="scanner-title" id="scannerModalTitle">F.E.L.I.C.I.A. GOD ROLL SCANNER</h3>
+            <h3 class="scanner-title" id="scannerModalTitle">R.E.B.O.R.N. GOD ROLL SCANNER</h3>
           </div>
         </div>
         <form method="dialog">
@@ -1653,9 +1656,9 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       </div>
 
       <div class="modal-body scanner-modal-body">
-        <!-- F.E.L.I.C.I.A. Readout & Stats -->
+        <!-- R.E.B.O.R.N. Readout & Stats -->
         <div class="scanner-summary-card" id="scannerSummaryCard">
-          <div class="scanner-felicia-msg" id="scannerFeliciaMsg">Scanning Characters &amp; Vault...</div>
+          <div class="scanner-felicia-msg" id="scannerRebornMsg">Scanning Characters &amp; Vault...</div>
           <div class="scanner-kpi-strip" id="scannerKpiStrip"></div>
         </div>
 
@@ -1677,7 +1680,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <!-- Dismantle Prep Toolbar (shown when 🗑️ Dismantle Helper tab is active) -->
         <div class="scanner-dismantle-toolbar hidden" id="scannerDismantleToolbar">
           <div class="dismantle-explainer">
-            <strong>🛡️ Safe Dismantle Prep:</strong> Bungie's API blocks direct remote deletion for account safety. Select weaker duplicate rolls or bad rolls below—F.E.L.I.C.I.A. will <strong>Unlock (🔓)</strong> them and <strong>Pull them onto your Character</strong> while keeping every <strong>#1 Best God Roll Locked (🔒)</strong> so you can hold Dismantle in-game in seconds! <em>(Equipped, Exotic, Crafted, and Saved-Loadout weapons are automatically protected.)</em>
+            <strong>🛡️ Safe Dismantle Prep:</strong> Bungie's API blocks direct remote deletion for account safety. Select weaker duplicate rolls or bad rolls below—R.E.B.O.R.N. will <strong>Unlock (🔓)</strong> them and <strong>Pull them onto your Character</strong> while keeping every <strong>#1 Best God Roll Locked (🔒)</strong> so you can hold Dismantle in-game in seconds! <em>(Equipped, Exotic, Crafted, and Saved-Loadout weapons are automatically protected.)</em>
           </div>
           <div class="dismantle-controls-row">
             <div class="dismantle-select-left">
@@ -1725,7 +1728,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="saved-loadout-actions">
           <button type="button" class="btn-item-action" id="btnEquipSavedLoadout">⚡ Equip Loadout In-Game</button>
           <button type="button" class="btn-item-action" id="btnImportSavedLoadoutToBuilder">🛠️ Customize in Loadout Builder</button>
-          <button type="button" class="btn-item-action btn-ask-felicia" id="btnAskFeliciaLoadout">❖ Ask F.E.L.I.C.I.A. to Review Loadout</button>
+          <button type="button" class="btn-item-action btn-ask-felicia" id="btnAskRebornLoadout">❖ Ask R.E.B.O.R.N. to Review Loadout</button>
         </div>
         <div class="inspect-transfer-feedback hidden" id="savedLoadoutFeedback"></div>
         <div id="savedLoadoutItemsContainer"></div>
@@ -1756,7 +1759,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="advisory-banner">
           <span class="banner-icon">❖</span>
           <div class="banner-text">
-            <strong>F.E.L.I.C.I.A.</strong> is still in <strong>heavy development</strong>. Not everything is finished yet or has all telemetry archives fully populated.
+            <strong>R.E.B.O.R.N.</strong> is still in <strong>heavy development</strong>. Not everything is finished yet or has all telemetry archives fully populated.
           </div>
         </div>
 
@@ -1769,7 +1772,9 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <li><strong>Complete Subclass &amp; Prismatic Builds:</strong> Battle-tested ability configurations, Aspects, and Fragments tailored across all 3 Guardian classes.</li>
             <li><strong>Compendium Armor Sets:</strong> Live 2-Piece and 4-Piece set bonuses (56 sets) with verified endgame drop locations.</li>
             <li><strong>Modern 0–200 Stat Tuning:</strong> Strict <strong>PvE Zero-Health rule</strong> (focusing stats on Grenade, Melee, Weapons, Super, Class) and 10+ Health prioritization for PvP flinch resistance.</li>
-            <li><strong>Live Bungie Inventory &amp; Vault Telemetry:</strong> Real-time gear inspection and personalized build recommendations crafted directly from what you already own.</li>
+            <li><strong>Live Bungie Inventory, Vault &amp; Duplicate Analyzer:</strong> Real-time gear inspection, duplicate roll ranking, and 1-click Safe Dismantle Prep.</li>
+            <li><strong>R.E.B.O.R.N. Neural Robotic Ghost Voice &amp; Quick-Comms Relay:</strong> Always-on floating Ghost assistant with Gemini Neural TTS + Web Audio Ghost FX and 1-click AI Loadout Blueprints.</li>
+            <li><strong>Expanded Intelligence Archives:</strong> 51 curated PvE/PvP weapon God Rolls (with AI Auto-Fill) and 86 Guides covering Raids, Dungeons, Catalysts, and 56 Armor Sets.</li>
           </ul>
         </div>
 
@@ -1778,7 +1783,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <span class="icon">⚠</span>
             <span>CURRENTLY MISSING OR IN PROGRESS:</span>
           </div>
-          <p class="pending-section-sub">F.E.L.I.C.I.A. has up-to-date builds and armor sets, but is currently missing or still tuning data for the following:</p>
+          <p class="pending-section-sub">R.E.B.O.R.N. has up-to-date builds and armor sets, but is currently missing or still tuning data for the following:</p>
           <ul class="advisory-list amber-bullets">
             <li>
               <strong>All Guns PvP / PvE God Rolls</strong>
@@ -1920,6 +1925,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="app.js?v=20261118_v57"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v58"></script>
+  <script type="module" src="app.js?v=20261126_v58"></script>
 </body>
 </html>

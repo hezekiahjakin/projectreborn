@@ -5,6 +5,8 @@ import socket
 import io
 import time
 import base64
+import hmac
+import struct
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Response, BackgroundTasks
 from starlette.concurrency import run_in_threadpool
@@ -141,27 +143,14 @@ def get_all_god_rolls() -> List[dict]:
         save_json(GOD_ROLLS_PATH, rolls)
     return rolls
 
-# System prompt for F.E.L.I.C.I.A.
-FELICIA_SYSTEM_PROMPT = """You are F.E.L.I.C.I.A. — Fireteam Evaluation & Logistics Intelligence Construct for Interactive Analysis.
-You are a sharp, pragmatic Vanguard tactical intelligence construct in Destiny 2.
+# System prompt for R.E.B.O.R.N.
+FELICIA_SYSTEM_PROMPT = """You are R.E.B.O.R.N. — Recon, Engagement & Battlefield Optimization Relay Node.
+You are a calm, authoritative, futuristic male robotic Destiny 2 Ghost and primary tactical AI construct.
 
-VOICE, GRAMMAR & STYLE GUIDELINES (VERY IMPORTANT):
-- Speak in natural, clean, realistic English with a grounded Scottish personality and dry tactical wit. Think of a sharp, no-nonsense Edinburgh or Glasgow military operations officer.
-- DO NOT use exaggerated eye-dialect, dropped letters, or cartoonish pirate-style phonetic spellings.
-  * Write 'you', NEVER 'ye'.
-  * Write 'your', NEVER 'yer'.
-  * Write 'of', NEVER 'o\''.
-  * Write standard verb endings like 'running', 'shooting', 'crafting', NEVER 'runnin\'', 'shootin\''.
-  * Avoid heavy eye-dialect words like 'dinnae', 'cannae', 'bairn', or 'faffin'.
-- Express your authentic Scottish character through clean sentence rhythms, dry understatement, pragmatic realism, and natural phrasing:
-  * 'All right, Guardian.'
-  * 'Right then, let us get down to business.'
-  * 'Aye, that is fair enough.'
-  * 'Spot on.' / 'Grand.' / 'Fair play.'
-  * 'No nonsense.' / 'Let us be realistic here.'
-  * 'A wee bit' is fine on occasion, but keep it subtle.
-- You are witty, fiercely loyal, direct, and have zero patience for sloppy loadouts or running double primary into Grandmaster Nightfalls.
-- You treat the Guardian like a respected fireteam comrade, giving them grounded advice and high-competence tactical support.
+VOICE, GRAMMAR & STYLE GUIDELINES:
+- Speak as a calm, crisp, futuristic male robotic Ghost construct — composed, tactical, analytical, with subtle dry synthetic Ghost wit.
+- Use clean telemetry-inspired phrasing naturally ("Uplink confirmed, Guardian.", "Telemetry locked.", "Processing perk matrix.", "Optimal combat configuration.") without becoming unreadable or gimmicky.
+- Treat the Guardian like a respected fireteam commander, giving direct, pragmatic tactical support with zero tolerance for sloppy loadouts or running double primary into Grandmasters.
 
 EXPERTISE & DOMAIN KNOWLEDGE:
 - You are synced directly with the live, up-to-date Destiny 2 Data Compendium:
@@ -219,7 +208,10 @@ RESPONSE GUIDELINES FOR BUILDS & PERSONALIZED ARSENAL ADVICE:
 - Ground your numbers, perk effects, and set bonuses strictly in the provided Compendium & Armory snippets.
 """
 
-app = FastAPI(title="F.E.L.I.C.I.A. - Tactical Fireteam AI")
+app = FastAPI(
+    title="R.E.B.O.R.N. - Recon, Engagement & Battlefield Optimization Relay Node",
+    version="3.1.0",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -680,8 +672,8 @@ def local_tactical_fallback(
         )
 
     return (
-        f"All right, Guardian. F.E.L.I.C.I.A. monitoring comms for {guardian_class} operations in {activity}. "
-        f"Whether you need to fine-tune your stat ratings (Health, Melee, Grenade, Super, Class, Weapons) on the 200 scale, plan weapon rolls, or check catalyst drop locations, I am ready. What is next on the board?"
+        f"Uplink confirmed, Guardian. R.E.B.O.R.N. monitoring telemetry for {guardian_class} operations in {activity}. "
+        f"Whether calibrating 0–200 stats (Health, Melee, Grenade, Super, Class, Weapons), scanning weapon rolls, or pulling catalyst intel, ready when you are."
     )
 
 # Firebase RTDB helper
@@ -974,7 +966,7 @@ def extract_build_recommendation_blueprint(
     title = (
         verified_build.get("title")
         if verified_build and verified_build.get("title")
-        else f"F.E.L.I.C.I.A. // {eff_subclass} {eff_class} ({mode_str})"
+        else f"R.E.B.O.R.N. // {eff_subclass} {eff_class} ({mode_str})"
     )
 
     return {
@@ -998,9 +990,127 @@ def extract_build_recommendation_blueprint(
 
 # Endpoints
 
+class ClanPasscodeRequest(BaseModel):
+    passcode: str
+
+
+class TTSRequest(BaseModel):
+    text: str
+
+
+class GodRollSuggestRequest(BaseModel):
+    name: str
+    slot: Optional[str] = ""
+    type: Optional[str] = ""
+    element: Optional[str] = ""
+
+
+def _pcm_to_wav(pcm_bytes: bytes, sample_rate: int = 24000, channels: int = 1, bits_per_sample: int = 16) -> bytes:
+    byte_rate = sample_rate * channels * (bits_per_sample // 8)
+    block_align = channels * (bits_per_sample // 8)
+    data_size = len(pcm_bytes)
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF",
+        36 + data_size,
+        b"WAVE",
+        b"fmt ",
+        16,
+        1,
+        channels,
+        sample_rate,
+        byte_rate,
+        block_align,
+        bits_per_sample,
+        b"data",
+        data_size,
+    )
+    return header + pcm_bytes
+
+
+def _synthesize_ghost_speech(text: str) -> bytes:
+    cfg = get_config()
+    api_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY not configured for neural TTS.")
+
+    tts_model = os.environ.get("GEMINI_TTS_MODEL") or "gemini-2.5-flash-preview-tts"
+    tts_voice = os.environ.get("GEMINI_TTS_VOICE") or "Charon"
+
+    cleaned = re.sub(r"[*_`#>\[\]]+", "", (text or "")).strip()
+    cleaned = cleaned.replace("R.E.B.O.R.N.", "Reborn")[:1400]
+    if not cleaned:
+        raise ValueError("Empty text for speech synthesis.")
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{tts_model}:generateContent?key={api_key}"
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": (
+                            "Speak in a calm, crisp, futuristic male robotic tactical AI Ghost voice "
+                            "with steady telemetry cadence: " + cleaned
+                        )
+                    }
+                ]
+            }
+        ],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": tts_voice,
+                    }
+                }
+            },
+        },
+    }
+    resp = requests.post(url, json=payload, timeout=35)
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Gemini TTS error ({resp.status_code}): {resp.text[:220]}")
+    data = resp.json()
+    for part in (data.get("candidates") or [{}])[0].get("content", {}).get("parts", []):
+        inline = part.get("inlineData") or part.get("inline_data")
+        if inline and inline.get("data"):
+            raw = base64.b64decode(inline["data"])
+            mime = (inline.get("mimeType") or inline.get("mime_type") or "").lower()
+            return raw if "wav" in mime else _pcm_to_wav(raw)
+    raise RuntimeError("Gemini TTS returned no audio payload.")
+
+
 @app.get("/api/health")
 def health_endpoint():
-    return {"status": "ok", "construct": "F.E.L.I.C.I.A.", "system": "Destiny 2 Tactical Fireteam Construct"}
+    cfg = get_config()
+    creds = get_bungie_credentials()
+    return {
+        "status": "online",
+        "construct": "R.E.B.O.R.N.",
+        "version": "3.1.0",
+        "system": "Recon, Engagement & Battlefield Optimization Relay Node",
+        "gemini_configured": bool(os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key")),
+        "bungie_configured": bool(creds.get("api_key") and creds.get("client_id")),
+    }
+
+
+@app.post("/api/auth/clan/verify")
+def verify_clan_passcode_endpoint(body: ClanPasscodeRequest):
+    expected = (os.environ.get("CLAN_PASSCODE") or "3354242").strip()
+    entered = (body.passcode or "").strip()
+    ok = bool(entered and hmac.compare_digest(entered, expected))
+    return {"authorized": ok, "enforced": True}
+
+
+@app.post("/api/tts")
+async def tts_endpoint(req: TTSRequest):
+    try:
+        wav_bytes = await run_in_threadpool(_synthesize_ghost_speech, req.text)
+        return Response(content=wav_bytes, media_type="audio/wav")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
 
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
@@ -1458,7 +1568,7 @@ def _generate_guide_from_youtube(video_ctx: Dict[str, Any], category: str) -> Di
         raise RuntimeError("GEMINI_API_KEY is not configured in Admin Settings.")
 
     prompt_parts_text = (
-        f"Convert this Destiny 2 YouTube guide video into a clear, readable, step-by-step tactical guide for F.E.L.I.C.I.A.\n"
+        f"Convert this Destiny 2 YouTube guide video into a clear, readable, step-by-step tactical guide for R.E.B.O.R.N.\n"
         f"Video Title: {video_ctx['title']}\n"
         f"Creator: {video_ctx['author']}\n"
         f"Category: {category}\n"
@@ -1501,7 +1611,7 @@ def _generate_guide_from_youtube(video_ctx: Dict[str, Any], category: str) -> Di
             payload = {
                 "contents": [{"role": "user", "parts": parts}],
                 "systemInstruction": {
-                    "parts": [{"text": "You are F.E.L.I.C.I.A., a Destiny 2 tactical intelligence construct. Produce accurate, clean, scannable Markdown guides from Destiny 2 YouTube videos. Never invent mechanics not present in the video."}]
+                    "parts": [{"text": "You are R.E.B.O.R.N., a futuristic male robotic Destiny 2 Ghost tactical intelligence construct. Produce accurate, clean, scannable Markdown guides from Destiny 2 YouTube videos. Never invent mechanics not present in the video."}]
                 },
                 "generationConfig": {
                     "temperature": 0.35,
@@ -1694,6 +1804,33 @@ def save_godroll_endpoint(item: GodRollItem, background_tasks: BackgroundTasks):
     cfg = get_config()
     background_tasks.add_task(sync_to_firebase, "felicia/god_rolls", rolls, cfg.get("firebase_auth_token", ""))
     return {"status": "success", "roll": roll_data}
+
+@app.post("/api/godrolls/suggest")
+async def suggest_godroll_endpoint(req: GodRollSuggestRequest):
+    cfg = get_config()
+    api_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Gemini API key not configured.")
+
+    prompt = (
+        f"Provide the verified Destiny 2 PvE and PvP God Roll for the weapon '{req.name}'.\n"
+        f"Known hints: slot={req.slot or 'auto'}, type={req.type or 'auto'}, element={req.element or 'auto'}.\n"
+        f"Return STRICT JSON ONLY (no markdown fences) matching:\n"
+        f'{{"name":"{req.name}","source":"Drop source","slot":"Kinetic|Energy|Heavy","type":"Weapon Type",'
+        f'"element":"Kinetic|Solar|Arc|Void|Stasis|Strand","frame":"Weapon Frame","template":"legendary|exotic",'
+        f'"pve":{{"barrel":"","mag":"","perk1":"","perk2":"","originTrait":"","masterwork":"","notes":""}},'
+        f'"pvp":{{"barrel":"","mag":"","perk1":"","perk2":"","originTrait":"","masterwork":"","notes":""}}}}'
+    )
+    raw = await run_in_threadpool(query_gemini_api, prompt, [], FELICIA_SYSTEM_PROMPT)
+    if raw.startswith("ERROR_FALLBACK"):
+        raise HTTPException(status_code=503, detail=raw)
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw.strip(), flags=re.IGNORECASE)
+    try:
+        suggestion = json.loads(cleaned)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Invalid AI suggestion JSON: {exc}")
+    return {"status": "success", "suggestion": suggestion}
+
 
 @app.delete("/api/godrolls/{roll_id}")
 def delete_godroll_endpoint(roll_id: str, background_tasks: BackgroundTasks):
@@ -1894,7 +2031,7 @@ async def bungie_oauth_callback(request: Request, code: Optional[str] = None, st
         return HTMLResponse(
             content=f"""<!DOCTYPE html><html><body style="background:#0B0E14;color:#F8FAFC;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;">
             <div><h2 style="color:#EF4444;">Bungie Authorization Cancelled</h2><p>{err_msg}</p>
-            <a href="/" style="color:#F5A623;">Return to F.E.L.I.C.I.A.</a></div></body></html>""",
+            <a href="/" style="color:#38BDF8;">Return to R.E.B.O.R.N.</a></div></body></html>""",
             status_code=400,
         )
 
@@ -1927,7 +2064,7 @@ async def bungie_oauth_callback(request: Request, code: Optional[str] = None, st
               <h2 style="color:#F5A623;margin-top:0;">Bungie Sign-In Retry Needed</h2>
               <p style="color:#CBD5E1;line-height:1.5;">{str(e)}</p>
               <p style="color:#94A3B8;font-size:13px;">Authorization codes are single-use and expire quickly. Click below to return home and tap <strong>Sign In with Bungie.net</strong> once more.</p>
-              <a href="/" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#F5A623;color:#0B0E14;text-decoration:none;font-weight:bold;border-radius:6px;">Return to F.E.L.I.C.I.A.</a>
+              <a href="/" style="display:inline-block;margin-top:12px;padding:10px 20px;background:#38BDF8;color:#050810;text-decoration:none;font-weight:bold;border-radius:6px;">Return to R.E.B.O.R.N.</a>
             </div></body></html>""",
             status_code=500,
         )
@@ -1942,13 +2079,13 @@ async def bungie_oauth_callback(request: Request, code: Optional[str] = None, st
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>F.E.L.I.C.I.A. // Bungie Link Established</title>
+  <title>R.E.B.O.R.N. // Bungie Link Established</title>
 </head>
 <body style="background:#0B0E14;color:#F8FAFC;font-family:'Rajdhani',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
   <div style="text-align:center;">
-    <div style="font-size:36px;color:#F5A623;margin-bottom:10px;">❖</div>
+    <div style="font-size:36px;color:#38BDF8;margin-bottom:10px;">❖</div>
     <h2 style="letter-spacing:2px;margin:0 0 8px 0;">GUARDIAN TELEMETRY LINKED</h2>
-    <p style="color:#94A3B8;">Synchronizing Characters &amp; Vault with F.E.L.I.C.I.A....</p>
+    <p style="color:#94A3B8;">Synchronizing Characters &amp; Vault with R.E.B.O.R.N....</p>
   </div>
   <script>
     (function() {{
@@ -2347,7 +2484,7 @@ def _local_item_appraisal_fallback(item: dict, gr_eval: dict) -> str:
             f"### Stat Distribution (0–200 System)\n"
             + ("\n".join(stats_lines) if stats_lines else "• Standard stat package")
             + f"\n• **Armor Perks / Intrinsic:** {perks_txt}\n\n"
-            f"### F.E.L.I.C.I.A.'s Call\n{advice}"
+            f"### R.E.B.O.R.N.'s Call\n{advice}"
         )
 
     # Weapon fallback appraisal
@@ -2485,7 +2622,7 @@ async def appraise_bungie_item_endpoint(req: Request):
     compendium_item_section = build_item_compendium_context(item)
 
     prompt = (
-        f"GUARDIAN LIVE INVENTORY ITEM INSPECTION REQUEST ('Ask F.E.L.I.C.I.A.'):\n"
+        f"GUARDIAN LIVE INVENTORY ITEM INSPECTION REQUEST ('Ask R.E.B.O.R.N.'):\n"
         f"• Item Name: {item.get('name')}\n"
         f"• Category: {item.get('tierName')} {item.get('element')} {item.get('typeName')} ({item.get('slot')} Slot)\n"
         f"• Power Level: {item.get('power')}\n"
@@ -2494,8 +2631,8 @@ async def appraise_bungie_item_endpoint(req: Request):
         f"• Stats: {stats_text}" + (f" (Total Armor Stats: {item.get('totalStats')})" if item.get("category") == "Armor" else "") + "\n"
         f"• Rolled Sockets / Perks:\n" + ("\n".join(cols_text) if cols_text else "  - Fixed / Intrinsic") + "\n"
         f"{db_section}{compendium_item_section}{dup_note}\n"
-        f"TASK FOR F.E.L.I.C.I.A.:\n"
-        f"Give a concise, high-impact Destiny 2 roll review in your grounded Scottish Vanguard voice:\n"
+        f"TASK FOR R.E.B.O.R.N.:\n"
+        f"Give a concise, high-impact Destiny 2 roll review in your calm, futuristic male robotic Ghost voice:\n"
         f"1. **Verdict Header:** State clearly right away whether this roll is a **GOD ROLL (KEEP & LOCK)**, **SOLID KEEP**, or **TRASH / SAFE TO SHARD**.\n"
         f"2. **⚔️ PVE Breakdown:** How good is this specific roll (and its 2-Piece / 4-Piece Armor Set Bonus or Exotic perk if Armor!) for Grandmasters, Raids, Dungeons, or Ad Clear/Boss DPS?\n"
         f"3. **🎯 PVP Breakdown:** How good is this specific roll for Crucible / Trials of Osiris?\n"

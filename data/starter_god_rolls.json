@@ -823,5 +823,503 @@
       "masterwork": "Impact",
       "notes": "Eager Edge lunges you across the map at supersonic speed for quick assassinations."
     }
+  },
+  {
+    "id": "roll-false-idols-0f03",
+    "name": "False Idols",
+    "slot": "Heavy",
+    "type": "Sword",
+    "element": "Solar",
+    "frame": "Vortex Frame",
+    "source": "The Pale Heart (Craftable)",
+    "pve": {
+      "barrel": "Enduring Blade",
+      "mag": "Heavy Guard",
+      "perk1": "Eager Edge",
+      "perk2": "Burning Ambition",
+      "masterwork": ".",
+      "notes": "**THIS SWORD IS RECOMMENDED FOR WELLSKATING, SHATTER SKATING, ETC** Eager Edge provides a massive lunge distance immediately after swapping, allowing you to traverse environments or close gaps on enemies with incredible speed. Enduring Blade and Heavy Guard maximize your sword ammo and defensive capabilities, ensuring you have enough reserves for Solar Vortex heavy spin attacks."
+    },
+    "pvp": {
+      "barrel": "Enduring Blade",
+      "mag": "Heavy Guard",
+      "perk1": "Eager Edge",
+      "perk2": "Burning Ambition",
+      "masterwork": ".",
+      "notes": "**THIS SWORD IS RECOMMENDED FOR WELLSKATING, SHATTER SKATING, ETC** Unsheathing the sword grants a brief window with significantly increased lunge range, allowing you to instantly close the distance and secure an elimination before opponents can react. Heavy Guard and Enduring Blade ensure you have maximum guard efficiency and ammo capacity to survive incoming fire while aggressively pushing."
+    }
+  },
+  {
+    "id": "roll-hawkmoon-84ec",
+    "name": "Hawkmoon",
+    "slot": "Kinetic",
+    "type": "Hand Cannon",
+    "element": "Kinetic",
+    "frame": "Paracausal Shot (140 RPM)",
+    "source": "Xûr (at the Tower)",
+    "pve": {
+      "barrel": "Corkscrew Rifling",
+      "mag": "Alloy Magazine",
+      "perk1": "Killing Wind",
+      "perk2": "Smooth Grip",
+      "masterwork": ".",
+      "notes": "Securing minor enemy kills builds Paracausal Charge stacks and activates Killing Wind, granting a surge of range and mobility to chain consecutive precision hits. Once you unleash your max-stack final round, Alloy Magazine drastically speeds up your empty reload so you can instantly reset the exotic loop."
+    },
+    "pvp": {
+      "barrel": "Corkscrew Rifling",
+      "mag": "Alloy Magazine",
+      "perk1": "Opening Shot",
+      "perk2": "Smooth Grip / Heavy Grip",
+      "masterwork": ".",
+      "notes": "Opening Shot provides an immense boost to range and aim assist on your initial trigger pull, making it highly forgiving to start building your damage stacks. A Range masterwork pushes your effective damage falloff even further, while Alloy Magazine ensures a quick recovery if forced to reload immediately after firing your lethal final bullet."
+    }
+  },
+  {
+    "id": "roll-eye-of-sol-f595",
+    "name": "Eye of Sol",
+    "slot": "Kinetic",
+    "type": "Sniper",
+    "element": "Kinetic",
+    "frame": "Adaptive Frame (90 RPM)",
+    "source": "Trials of Osiris",
+    "pve": {
+      "barrel": "Arrowhead Brake",
+      "mag": "Ricochet Rounds",
+      "perk1": "Rewind Rounds",
+      "perk2": "Kinetic Tremors",
+      "masterwork": "Handling",
+      "notes": "Landing consecutive shots procs Kinetic Tremors to unleash heavy area-of-effect shockwaves against Champions and majors. Rewind Rounds automatically refills the magazine based on your hits, allowing you to sustain damage without breaking your aim to reload."
+    },
+    "pvp": {
+      "barrel": "Arrowhead Brake",
+      "mag": "Ricochet Rounds",
+      "perk1": "Moving Target",
+      "perk2": "Snapshot Sights / Opening Shot",
+      "masterwork": "Range / Handling",
+      "notes": "Moving Target provides a crucial boost to aim assist and strafe speed for premium lane dueling and quick-scoping. Pairing it with Snapshot Sights ensures instantaneous ADS speeds during highly mobile Crucible engagements."
+    }
+  },
+  {
+    "id": "roll-felwinter-s-lie-1276",
+    "name": "Felwinter's Lie",
+    "slot": "Energy",
+    "type": "Shotgun",
+    "element": "Solar",
+    "frame": "Shot Package",
+    "source": "Iron Banner",
+    "pve": {
+      "barrel": "Rifled Barrel",
+      "mag": "Accurized Rounds",
+      "perk1": "Heal Clip",
+      "perk2": "Incandescent",
+      "masterwork": "Reload Speed / Range",
+      "notes": "ecuring eliminations with Incandescent spreads Scorch to nearby enemy groups, priming them for devastating Ignitions. Following up with a quick reload triggers Heal Clip, granting Cure to keep you and your nearby fireteam members alive in close-quarters combat."
+    },
+    "pvp": {
+      "barrel": "Barrel Shroud / Rifled Barrel",
+      "mag": "Accurized Rounds",
+      "perk1": "Slideshot / Threat Detector",
+      "perk2": "Opening Shot",
+      "masterwork": "Range",
+      "notes": "Accurized Rounds paired with Opening Shot guarantees a massive boost to range and accuracy on your initial trigger pull, maximizing one-hit elimination consistency. You can utilize Slideshot to aggressively close the gap, or swap to Threat Detector alongside Barrel Shroud for incredibly snappy weapon handling."
+    }
+  },
+  {
+    "id": "roll-epochal-integration-5e81",
+    "name": "Epochal Integration",
+    "slot": "Energy",
+    "type": "Hand Cannon",
+    "element": "Solar",
+    "frame": "Adaptive Frame (140 RPM)",
+    "source": "Neomuna (or Nimbus once finished Lightfall)",
+    "pve": {
+      "barrel": "Corkscrew Rifling",
+      "mag": "Accurized Rounds",
+      "perk1": "Explosive Payload",
+      "perk2": "Incandescent",
+      "masterwork": "Range",
+      "notes": "Explosive Payload provides a flat damage boost to every shot while mitigating damage falloff against higher-tier combatants. Pairing this with Incandescent spreads Scorch to grouped targets upon kills, chaining massive Solar Ignitions."
+    },
+    "pvp": {
+      "barrel": "Hammer Forged Rifling / Corkscrew Rifling",
+      "mag": "Accurized Rounds",
+      "perk1": "Slideshot / Opening Shot",
+      "perk2": "Precision Instrument",
+      "masterwork": "Range",
+      "notes": "Opening Shot or Slideshot guarantees a massive boost to your accuracy and range for the opening volley. Consecutive hits proc Precision Instrument, raising critical damage to push out your effective three-tap range against high-resilience targets."
+    }
+  },
+  {
+    "id": "roll-nation-of-beasts-a3f9",
+    "name": "Nation of Beasts",
+    "slot": "Energy",
+    "type": "Hand Cannon",
+    "element": "Arc",
+    "frame": "Adaptive Frame (140 RPM)",
+    "source": "Last Wish Raid (Craftable)",
+    "pve": {
+      "barrel": "Hammer Forged Rifling",
+      "mag": "Accurized Rounds",
+      "perk1": "Dragon Fly / Gear Shift",
+      "perk2": "Voltshot / Jolting Feedback",
+      "masterwork": "Reload Speed / Range",
+      "notes": "Combining Dragon Fly's precision explosions with Voltshot's chain lightning creates massive Arc area-of-effect damage to wipe out grouped enemies instantly. A Reload Speed masterwork ensures you can quickly proc Voltshot after every kill."
+    },
+    "pvp": {
+      "barrel": "Hammer Forged Rifling",
+      "mag": "Accurized Rounds",
+      "perk1": "Gear Shift",
+      "perk2": "Kill Clip",
+      "masterwork": "Range",
+      "notes": "Hammer Forged Rifling, Accurized Rounds, and a Range masterwork work together to push your damage falloff as far out as possible. After securing your first elimination, reloading activates Kill Clip for a highly forgiving time-to-kill in your next gunfight."
+    }
+  },
+  {
+    "id": "roll-tinashas-mastery",
+    "name": "Tinasha's Mastery",
+    "slot": "Kinetic",
+    "type": "Sidearm",
+    "element": "Stasis",
+    "frame": "Rocket-Assisted Frame",
+    "source": "Iron Banner",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Explosive Ordnance",
+      "perk1": "Air Trigger / Deconstruct",
+      "perk2": "Chill Clip",
+      "originTrait": "Skulking Wolf",
+      "masterwork": "Reload Speed",
+      "notes": "Premier utility special weapon: Chill Clip stuns Overload and Unstoppable Champions while freezing groups on demand."
+    },
+    "pvp": {
+      "barrel": "Linear Compensator",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Impulse Amplifier",
+      "perk2": "Adagio",
+      "originTrait": "Skulking Wolf",
+      "masterwork": "Velocity",
+      "notes": "Fast projectile speed for clean 2-tap finishes."
+    }
+  },
+  {
+    "id": "roll-vs-velocity-baton",
+    "name": "VS Velocity Baton",
+    "slot": "Energy",
+    "type": "Grenade Launcher",
+    "element": "Void",
+    "frame": "Area Denial Frame",
+    "source": "Vesper's Host Dungeon",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Demolitionist / Unrelenting",
+      "perk2": "Attrition Orbs",
+      "originTrait": "Bray Legacy",
+      "masterwork": "Reload Speed",
+      "notes": "Unmatched orb generation machine — Attrition Orbs procs rapidly from area-denial ticks for endless Surge & Super energy."
+    },
+    "pvp": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Repulsor Brace",
+      "perk2": "Destabilizing Rounds",
+      "originTrait": "Bray Legacy",
+      "masterwork": "Handling",
+      "notes": "Strong objective denial in 6v6."
+    }
+  },
+  {
+    "id": "roll-vs-chill-inhibitor",
+    "name": "VS Chill Inhibitor",
+    "slot": "Heavy",
+    "type": "Grenade Launcher",
+    "element": "Stasis",
+    "frame": "Rapid-Fire Frame",
+    "source": "Vesper's Host Dungeon",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "Spike Grenades",
+      "perk1": "Envious Arsenal",
+      "perk2": "Bait and Switch",
+      "originTrait": "Bray Legacy",
+      "masterwork": "Velocity",
+      "notes": "Top-tier boss DPS Heavy GL: cycle Kinetic + Energy to auto-reload via Envious Arsenal and maintain permanent Bait and Switch."
+    },
+    "pvp": {
+      "barrel": "Volatile Launch",
+      "mag": "Proximity Grenades",
+      "perk1": "Cascade Point",
+      "perk2": "Explosive Light",
+      "originTrait": "Bray Legacy",
+      "masterwork": "Blast Radius",
+      "notes": "Consistent heavy-ammo multi-kills."
+    }
+  },
+  {
+    "id": "roll-lost-signal",
+    "name": "Lost Signal",
+    "slot": "Kinetic",
+    "type": "Grenade Launcher",
+    "element": "Stasis",
+    "frame": "Area Denial Frame",
+    "source": "Episode: Echoes (Craftable)",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Auto-Loading Holster",
+      "perk2": "Vorpal Weapon / Demolitionist",
+      "originTrait": "Radiolaria Transposer",
+      "masterwork": "Handling",
+      "notes": "Effortless Darkness Transcendence meter builder for Prismatic builds and passive boss tick damage."
+    },
+    "pvp": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Auto-Loading Holster",
+      "perk2": "One for All",
+      "originTrait": "Radiolaria Transposer",
+      "masterwork": "Handling",
+      "notes": "Locks down choke points and zones."
+    }
+  },
+  {
+    "id": "roll-hezen-vengeance",
+    "name": "Hezen Vengeance (Timelost)",
+    "slot": "Heavy",
+    "type": "Rocket Launcher",
+    "element": "Solar",
+    "frame": "Aggressive Frame",
+    "source": "Vault of Glass (Master)",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "Impact Casing",
+      "perk1": "Envious Arsenal / Overflow",
+      "perk2": "Bait and Switch / Elemental Honing",
+      "originTrait": "Timelost Magazine",
+      "masterwork": "Handling",
+      "notes": "Refreshed VoG DPS monster — Timelost Magazine + Envious Arsenal lets you dump rockets with zero downtime."
+    },
+    "pvp": {
+      "barrel": "Volatile Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Impulse Amplifier",
+      "perk2": "Cluster Bomb",
+      "originTrait": "Timelost Magazine",
+      "masterwork": "Blast Radius",
+      "notes": "Fast, forgiving heavy rocket."
+    }
+  },
+  {
+    "id": "roll-praedyths-revenge",
+    "name": "Praedyth's Revenge (Timelost)",
+    "slot": "Kinetic",
+    "type": "Sniper Rifle",
+    "element": "Kinetic",
+    "frame": "Rapid-Fire Frame",
+    "source": "Vault of Glass (Master)",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Arrowhead Brake",
+      "mag": "Tactical Mag",
+      "perk1": "Kinetic Tremors / Fourth Time's the Charm",
+      "perk2": "Elemental Honing / Bait and Switch",
+      "originTrait": "Timelost Magazine",
+      "masterwork": "Reload Speed",
+      "notes": "Premier Kinetic swap-DPS sniper pairing seamlessly with Envious Arsenal heavy rotations."
+    },
+    "pvp": {
+      "barrel": "Fluted Barrel",
+      "mag": "Accurized Rounds",
+      "perk1": "Moving Target",
+      "perk2": "Opening Shot",
+      "originTrait": "Timelost Magazine",
+      "masterwork": "Handling",
+      "notes": "Snappy rapid-fire headshot machine."
+    }
+  },
+  {
+    "id": "roll-unvoiced",
+    "name": "Unvoiced",
+    "slot": "Energy",
+    "type": "Shotgun",
+    "element": "Void",
+    "frame": "Pinpoint Slug Frame",
+    "source": "Sundered Doctrine Dungeon",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Fluted Barrel",
+      "mag": "Assault Mag",
+      "perk1": "Redirection / Envious Assassin",
+      "perk2": "Bait and Switch / Destabilizing Rounds",
+      "originTrait": "Subjugation",
+      "masterwork": "Handling",
+      "notes": "High-burst Void slug for close-range boss encounters and Void surge rotations."
+    },
+    "pvp": {
+      "barrel": "Fluted Barrel",
+      "mag": "Accurized Rounds",
+      "perk1": "Lone Wolf",
+      "perk2": "Closing Time",
+      "originTrait": "Subjugation",
+      "masterwork": "Range",
+      "notes": "Maxed aim assist and range for deep slug OHKs."
+    }
+  },
+  {
+    "id": "roll-indebted-kindness",
+    "name": "Indebted Kindness",
+    "slot": "Energy",
+    "type": "Sidearm",
+    "element": "Arc",
+    "frame": "Rocket-Assisted Frame",
+    "source": "Warlord's Ruin Dungeon",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Explosive Ordnance",
+      "perk1": "Impulse Amplifier / Lead from Gold",
+      "perk2": "Voltshot",
+      "originTrait": "Sundering",
+      "masterwork": "Reload Speed",
+      "notes": "Workhorse Arc Rocket Sidearm — clears rooms with Voltshot and deletes Majors from safe range."
+    },
+    "pvp": {
+      "barrel": "Linear Compensator",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Impulse Amplifier",
+      "perk2": "Adagio",
+      "originTrait": "Sundering",
+      "masterwork": "Velocity",
+      "notes": "Crisp cleanup sidearm."
+    }
+  },
+  {
+    "id": "roll-calus-mini-tool",
+    "name": "CALUS Mini-Tool",
+    "slot": "Energy",
+    "type": "Submachine Gun",
+    "element": "Solar",
+    "frame": "MIDA Synergy (900 RPM)",
+    "source": "Presage Exotic Mission (Craftable)",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Arrowhead Brake",
+      "mag": "Flared Magwell",
+      "perk1": "Unrelenting / Grave Robber",
+      "perk2": "Incandescent",
+      "originTrait": "To Excess",
+      "masterwork": "Reload Speed",
+      "notes": "Classic Solar ad-clear staple with fast Scorch/Ignition chaining."
+    },
+    "pvp": {
+      "barrel": "Smallbore",
+      "mag": "Accurized Rounds",
+      "perk1": "Moving Target",
+      "perk2": "Tap the Trigger",
+      "originTrait": "To Excess",
+      "masterwork": "Range",
+      "notes": "High-stability dueling SMG."
+    }
+  },
+  {
+    "id": "roll-psychopomp",
+    "name": "Psychopomp",
+    "slot": "Energy",
+    "type": "Grenade Launcher",
+    "element": "Arc",
+    "frame": "Area Denial Frame",
+    "source": "Episode: Heresy",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Ambitious Assassin / Unrelenting",
+      "perk2": "Rolling Storm / Frenzy",
+      "originTrait": "Runneth Over",
+      "masterwork": "Reload Speed",
+      "notes": "Builds Bolt Charge effortlessly with Rolling Storm while blanketing spawns in Arc pools."
+    },
+    "pvp": {
+      "barrel": "Quick Launch",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Eddy Current",
+      "perk2": "Elemental Capacitor",
+      "originTrait": "Runneth Over",
+      "masterwork": "Handling",
+      "notes": "Area denial for Trials/Comp zones."
+    }
+  },
+  {
+    "id": "roll-lotus-eater",
+    "name": "Lotus-Eater (Adept)",
+    "slot": "Energy",
+    "type": "Sidearm",
+    "element": "Void",
+    "frame": "Rocket-Assisted Frame",
+    "source": "Grandmaster Nightfalls",
+    "tier": "Legendary",
+    "template": "legendary",
+    "pve": {
+      "barrel": "Quick Launch",
+      "mag": "High-Explosive Ordnance",
+      "perk1": "Repulsor Brace / Reconstruction",
+      "perk2": "Destabilizing Rounds / Withering Gaze",
+      "originTrait": "Stunning Recovery",
+      "masterwork": "Reload Speed",
+      "notes": "Self-contained Void Overshield + Volatile engine in a Rocket Sidearm."
+    },
+    "pvp": {
+      "barrel": "Linear Compensator",
+      "mag": "High-Velocity Rounds",
+      "perk1": "Strategist",
+      "perk2": "Adagio",
+      "originTrait": "Vanguard's Vindication",
+      "masterwork": "Velocity",
+      "notes": "Strong class-ability synergy."
+    }
+  },
+  {
+    "id": "roll-choir-of-one",
+    "name": "Choir of One",
+    "slot": "Energy",
+    "type": "Auto Rifle",
+    "element": "Void",
+    "frame": "Special Ammo Exotic Auto Rifle",
+    "source": "Encore Exotic Mission (Craftable)",
+    "tier": "Exotic",
+    "template": "exotic",
+    "pve": {
+      "barrel": "Arrowhead Brake",
+      "mag": "Appended Mag",
+      "perk1": "Command Frame",
+      "perk2": "Destabilizing Rounds / Onslaught (Catalyst)",
+      "originTrait": "Exotic Intrinsic",
+      "masterwork": "Catalyst",
+      "notes": "Hip-fire Wyvern blasts melt Champions and bosses while ADS offers scout-like precision."
+    },
+    "pvp": {
+      "barrel": "Smallbore",
+      "mag": "Accurized Rounds",
+      "perk1": "Command Frame",
+      "perk2": "Subsistence (Catalyst)",
+      "originTrait": "Exotic Intrinsic",
+      "masterwork": "Catalyst",
+      "notes": "Lethal hip-fire burst at close-mid range."
+    }
   }
 ]

@@ -1,6 +1,6 @@
 /**
- * F.E.L.I.C.I.A. // Tactical Fireteam Construct Client Engine
- * Fireteam Evaluation & Logistics Intelligence Construct for Interactive Analysis
+ * R.E.B.O.R.N. // Tactical Fireteam Construct Client Engine
+ * Recon, Engagement & Battlefield Optimization Relay Node
  * Powered by Firebase Authentication & Cloud Firestore (ping-vault-matrix)
  */
 
@@ -25,7 +25,7 @@ import {
   Destiny3DStage,
   ICONIC_DESTINY_SHADERS,
   searchManifestShaders
-} from './tgxm-viewer.js?v=20261118_v57';
+} from './tgxm-viewer.js?v=20261126_v58';
 
 // Application State
 const state = {
@@ -38,8 +38,8 @@ const state = {
   shader: 'solar',       // 'stasis', 'void', 'arc', 'solar', 'strand', 'prismatic'
   soundEnabled: true,
   autoSpeak: false,
-  voiceRate: 1.0,
-  voicePitch: 1.05,
+  voiceRate: 1.02,
+  voicePitch: 0.84,
   selectedVoice: null,
   chatHistory: [],
   wikiList: [],
@@ -135,13 +135,13 @@ class GhostAudioEngine {
     this.lastHoverAt = 0;
     this.suppressHoverUntil = 0;
     this.urls = {
-      hover: './sfx/hover.wav?v=20261118_v57',
-      equip: './sfx/equip.wav?v=20261118_v57',
-      inspect: './sfx/inspect.wav?v=20261118_v57',
-      characterSelect: './sfx/character_select.m4a?v=20261118_v57',
-      ghostScan: './sfx/ghost_scan.m4a?v=20261118_v57',
-      revive: './sfx/revive.m4a?v=20261118_v57',
-      crucibleKill: './sfx/crucible_kill.m4a?v=20261118_v57',
+      hover: './sfx/hover.wav?v=20261126_v58',
+      equip: './sfx/equip.wav?v=20261126_v58',
+      inspect: './sfx/inspect.wav?v=20261126_v58',
+      characterSelect: './sfx/character_select.m4a?v=20261126_v58',
+      ghostScan: './sfx/ghost_scan.m4a?v=20261126_v58',
+      revive: './sfx/revive.m4a?v=20261126_v58',
+      crucibleKill: './sfx/crucible_kill.m4a?v=20261126_v58',
     };
     this._preloadRaw();
   }
@@ -312,9 +312,9 @@ if (typeof document !== 'undefined') {
 }
 
 /* ==========================================================================
-   SCOTTISH SPEECH SYNTHESIS ENGINE
+   ROBOTIC MALE GHOST SPEECH SYNTHESIS ENGINE (R.E.B.O.R.N.)
    ========================================================================== */
-class ScottishVoiceEngine {
+class RoboticGhostVoiceEngine {
   constructor() {
     this.voices = [];
     this.initVoices();
@@ -323,35 +323,70 @@ class ScottishVoiceEngine {
     }
   }
 
+  isPreferredMaleVoice(v) {
+    const n = (v.name || '').toLowerCase();
+    const l = (v.lang || '').toLowerCase();
+    if (!l.startsWith('en')) return false;
+    const maleHints = [
+      'guy', 'christopher', 'ryan', 'andrew', 'eric', 'david', 'mark',
+      'george', 'daniel', 'arthur', 'alex', 'aaron', 'fred', 'james',
+      'thomas', 'oliver', 'male', 'brian', 'roger', 'steffan'
+    ];
+    return maleHints.some(h => n.includes(h));
+  }
+
+  playCommsTone(isStart = true) {
+    if (!state.soundEnabled || typeof window === 'undefined') return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      const now = ctx.currentTime;
+      if (isStart) {
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+      } else {
+        osc.frequency.setValueAtTime(740, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.055);
+      }
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+      setTimeout(() => ctx.close().catch(() => {}), 150);
+    } catch (_) {}
+  }
+
   initVoices() {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
     this.voices = window.speechSynthesis.getVoices();
     const select = document.getElementById('voiceSelect');
     if (!select) return;
 
-    select.innerHTML = '<option value="auto">Auto-detect Scottish / UK Voice</option>';
-    
-    // Sort so UK/Scottish voices appear at top
-    const ukVoices = [];
+    select.innerHTML = '<option value="auto">Auto-detect Male Robotic Ghost Voice</option>';
+
+    const maleVoices = [];
     const otherVoices = [];
 
     this.voices.forEach((v, idx) => {
-      const nameLower = v.name.toLowerCase();
-      const langLower = v.lang.toLowerCase();
-      const isScot = nameLower.includes('scot') || nameLower.includes('fiona');
-      const isUK = langLower.includes('en-gb') || langLower.includes('en_gb') || langLower.includes('en-ie') || nameLower.includes('uk');
-
-      if (isScot || isUK) {
-        ukVoices.push({ v, idx, isScot });
-      } else if (langLower.startsWith('en')) {
-        otherVoices.push({ v, idx, isScot: false });
+      const langLower = (v.lang || '').toLowerCase();
+      if (!langLower.startsWith('en')) return;
+      if (this.isPreferredMaleVoice(v)) {
+        maleVoices.push({ v, idx });
+      } else {
+        otherVoices.push({ v, idx });
       }
     });
 
-    ukVoices.forEach(({ v, idx, isScot }) => {
+    maleVoices.forEach(({ v, idx }) => {
       const opt = document.createElement('option');
       opt.value = idx;
-      opt.textContent = `${isScot ? '🏴󠁧󠁢󠁳󠁣󠁴󠁿 ' : '🇬🇧 '} ${v.name} (${v.lang})`;
+      opt.textContent = `🤖 ${v.name} (${v.lang})`;
       select.appendChild(opt);
     });
 
@@ -363,12 +398,87 @@ class ScottishVoiceEngine {
     });
   }
 
-  speak(text) {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
+  pickBestMaleVoice() {
+    const priorityNames = [
+      'microsoft guy', 'microsoft christopher', 'microsoft ryan',
+      'microsoft andrew', 'microsoft eric', 'google uk english male',
+      'microsoft david', 'microsoft mark', 'daniel', 'alex', 'arthur', 'male'
+    ];
+    for (const hint of priorityNames) {
+      const match = this.voices.find(
+        v => (v.lang || '').toLowerCase().startsWith('en') && (v.name || '').toLowerCase().includes(hint)
+      );
+      if (match) return match;
+    }
+    return this.voices.find(v => this.isPreferredMaleVoice(v))
+      || this.voices.find(v => (v.lang || '').toLowerCase().startsWith('en'))
+      || null;
+  }
 
-    // Clean markdown symbols for natural reading
-    const cleanText = text
+  async playNeuralGhostAudio(arrayBuffer) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) throw new Error('Web Audio API unavailable');
+    if (this._activeAudioCtx) {
+      try { this._activeAudioCtx.close(); } catch (_) {}
+    }
+    const ctx = new AudioCtx();
+    this._activeAudioCtx = ctx;
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+    const src = ctx.createBufferSource();
+    src.buffer = audioBuffer;
+    src.playbackRate.value = Math.max(0.8, Math.min(1.25, state.voiceRate || 1.02));
+
+    // Futuristic Robotic Ghost Radio + Metallic Comb FX Chain
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 260;
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3800;
+
+    const delay = ctx.createDelay(0.1);
+    delay.delayTime.value = 0.016; // 16ms subtle robotic metallic shimmer
+    const wetGain = ctx.createGain();
+    wetGain.gain.value = 0.16;
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 0.92;
+
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -18;
+    comp.ratio.value = 4;
+
+    src.connect(hp);
+    hp.connect(lp);
+    lp.connect(dryGain);
+    lp.connect(delay);
+    delay.connect(wetGain);
+    dryGain.connect(comp);
+    wetGain.connect(comp);
+    comp.connect(ctx.destination);
+
+    state.isSpeaking = true;
+    this.playCommsTone(true);
+    updateConstructMood('TRANSMITTING AUDIO // NEURAL GHOST RELAY');
+
+    return new Promise((resolve) => {
+      src.onended = () => {
+        state.isSpeaking = false;
+        this.playCommsTone(false);
+        updateConstructMood('STATUS: STANDBY // SCANNING');
+        ctx.close().catch(() => {});
+        if (this._activeAudioCtx === ctx) this._activeAudioCtx = null;
+        resolve();
+      };
+      src.start(0);
+    });
+  }
+
+  speak(text) {
+    this.stop();
+
+    const cleanText = String(text || '')
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
       .replace(/#+\s/g, '')
@@ -376,61 +486,70 @@ class ScottishVoiceEngine {
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/---/g, '')
       .replace(/•/g, '')
+      .replace(/R\.E\.B\.O\.R\.N\./g, 'Reborn')
       .trim();
 
     if (!cleanText) return;
 
-    const utter = new SpeechSynthesisUtterance(cleanText);
-    utter.rate = state.voiceRate;
-    utter.pitch = state.voicePitch;
+    // 1. Try studio-grade Gemini Neural Male Ghost TTS + Web Audio FX first
+    fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: cleanText }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Neural TTS unavailable');
+        return res.arrayBuffer();
+      })
+      .then((buf) => this.playNeuralGhostAudio(buf))
+      .catch(() => {
+        // 2. Seamless fallback to browser SpeechSynthesis male robotic Ghost cadence
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        const utter = new SpeechSynthesisUtterance(cleanText);
+        utter.rate = state.voiceRate;
+        utter.pitch = state.voicePitch;
 
-    // Pick voice
-    const select = document.getElementById('voiceSelect');
-    const selectedIdx = select ? select.value : 'auto';
+        const select = document.getElementById('voiceSelect');
+        const selectedIdx = select ? select.value : 'auto';
 
-    if (selectedIdx !== 'auto' && this.voices[selectedIdx]) {
-      utter.voice = this.voices[selectedIdx];
-    } else {
-      // Find Scottish or best UK voice
-      const scotVoice = this.voices.find(v => 
-        v.name.toLowerCase().includes('scot') || 
-        v.name.toLowerCase().includes('fiona')
-      );
-      const ukVoice = this.voices.find(v => 
-        v.lang.toLowerCase().includes('en-gb') || 
-        v.lang.toLowerCase().includes('en_gb')
-      );
-      if (scotVoice) utter.voice = scotVoice;
-      else if (ukVoice) utter.voice = ukVoice;
-    }
+        if (selectedIdx !== 'auto' && this.voices[selectedIdx]) {
+          utter.voice = this.voices[selectedIdx];
+        } else {
+          const maleVoice = this.pickBestMaleVoice();
+          if (maleVoice) utter.voice = maleVoice;
+        }
 
-    utter.onstart = () => {
-      state.isSpeaking = true;
-      updateConstructMood('TRANSMITTING AUDIO // SCOTTISH VOICE');
-    };
-
-    utter.onend = () => {
-      state.isSpeaking = false;
-      updateConstructMood('STATUS: STANDBY // SCANNING');
-    };
-
-    utter.onerror = () => {
-      state.isSpeaking = false;
-      updateConstructMood('STATUS: STANDBY // SCANNING');
-    };
-
-    window.speechSynthesis.speak(utter);
+        utter.onstart = () => {
+          state.isSpeaking = true;
+          this.playCommsTone(true);
+          updateConstructMood('TRANSMITTING AUDIO // ROBOTIC GHOST RELAY');
+        };
+        utter.onend = () => {
+          state.isSpeaking = false;
+          this.playCommsTone(false);
+          updateConstructMood('STATUS: STANDBY // SCANNING');
+        };
+        utter.onerror = () => {
+          state.isSpeaking = false;
+          updateConstructMood('STATUS: STANDBY // SCANNING');
+        };
+        window.speechSynthesis.speak(utter);
+      });
   }
 
-  stop() {
+    stop() {
+    if (this._activeAudioCtx) {
+      try { this._activeAudioCtx.close(); } catch (_) {}
+      this._activeAudioCtx = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      state.isSpeaking = false;
     }
+    state.isSpeaking = false;
   }
 }
 
-const voice = new ScottishVoiceEngine();
+const voice = new RoboticGhostVoiceEngine();
 
 /* ==========================================================================
    INTERACTIVE CANVAS 3D GHOST CONSTRUCT (V1 DEFAULT DESIGN)
@@ -856,7 +975,7 @@ async function sendChatMessage(userText) {
 
     if (!res.ok || !data) {
       const errorMsg = data?.reply || data?.detail || (res.status >= 500 
-        ? "Vanguard communications relay hit atmospheric turbulence on the server! Felicia is reconnecting—give it another quick transmission." 
+        ? "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission." 
         : `Vanguard uplink responded with status ${res.status}`);
       throw new Error(errorMsg);
     }
@@ -878,8 +997,8 @@ async function sendChatMessage(userText) {
       }
     }
 
-    // Append F.E.L.I.C.I.A.'s Scottish reply with DIM Loadout Blueprint if applicable
-    appendMessage('felicia', 'F.E.L.I.C.I.A.', reply, data.snippets_used, data.recommended_build || null, {
+    // Append R.E.B.O.R.N.'s Robotic Ghost reply with DIM Loadout Blueprint if applicable
+    appendMessage('felicia', 'R.E.B.O.R.N.', reply, data.snippets_used, data.recommended_build || null, {
       effectiveClass: data.effective_class,
       effectiveSubclass: data.effective_subclass,
       userPrompt: text
@@ -901,8 +1020,8 @@ async function sendChatMessage(userText) {
     if (thinkingEl) thinkingEl.classList.add('hidden');
     const safeMsg = (err.message && !err.message.includes('Unexpected token') && !err.message.includes('is not valid JSON')) 
       ? err.message 
-      : "Vanguard communications relay hit atmospheric turbulence on the server! Felicia is reconnecting—give it another quick transmission.";
-    appendMessage('felicia', 'F.E.L.I.C.I.A.', `Signal dropped out: ${safeMsg}`);
+      : "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission.";
+    appendMessage('felicia', 'R.E.B.O.R.N.', `Signal dropped out: ${safeMsg}`);
     updateConstructMood('ERROR // COMMUNICATIONS DRIFT');
   }
 }
@@ -914,8 +1033,8 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
   const row = document.createElement('div');
   row.className = `message-row ${role}`;
 
-  const isFelicia = role === 'felicia';
-  const avatarHtml = isFelicia 
+  const isReborn = role === 'felicia';
+  const avatarHtml = isReborn 
     ? '<div class="msg-avatar"><div class="ghost-mini-core"></div></div>'
     : '<div class="msg-avatar"><span class="user-avatar-text">G</span></div>';
 
@@ -926,10 +1045,10 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
     </div>`;
   }
 
-  const headerActionsHtml = isFelicia 
+  const headerActionsHtml = isReborn 
     ? `<div style="margin-left:auto; display:inline-flex; gap:6px; align-items:center;">
          <button type="button" class="btn-voice-play btn-msg-loadout-builder" title="Open DIM Loadout Builder from this response">🛠️ Build Loadout</button>
-         <button type="button" class="btn-voice-play btn-msg-voice-listen" title="Listen to Scottish Voice">🗣️ Listen</button>
+         <button type="button" class="btn-voice-play btn-msg-voice-listen" title="Listen to R.E.B.O.R.N. (Robotic Ghost Voice)">🗣️ Listen</button>
        </div>`
     : '';
 
@@ -938,7 +1057,7 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
     <div class="msg-bubble">
       <div class="msg-header">
         <span class="msg-sender">${sender}</span>
-        <span class="msg-tag">${isFelicia ? 'SCOTTISH CONSTRUCT' : (getActiveCharacter()?.className || state.guardianClass || 'GUARDIAN').toUpperCase()}</span>
+        <span class="msg-tag">${isReborn ? 'TACTICAL GHOST RELAY' : (getActiveCharacter()?.className || state.guardianClass || 'GUARDIAN').toUpperCase()}</span>
         ${headerActionsHtml}
       </div>
       <div class="msg-content">
@@ -949,7 +1068,7 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
     </div>
   `;
 
-  if (isFelicia) {
+  if (isReborn) {
     const playBtn = row.querySelector('.btn-msg-voice-listen');
     if (playBtn) {
       playBtn.addEventListener('click', () => {
@@ -1017,7 +1136,7 @@ function renderWikiGrid(filterCat = 'all', searchQuery = '') {
 
   if (filtered.length === 0) {
     grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#64748B; font-family:var(--font-tactical); font-size:16px;">
-      NO INTEL ENTRIES FOUND. TAP 'ADD INTEL ENTRY' OR 'IMPORT WIKI FILE' TO EXPAND F.E.L.I.C.I.A.'S KNOWLEDGE!
+      NO INTEL ENTRIES FOUND. TAP 'ADD INTEL ENTRY' OR 'IMPORT WIKI FILE' TO EXPAND R.E.B.O.R.N.'S KNOWLEDGE!
     </div>`;
     return;
   }
@@ -1082,7 +1201,7 @@ function openWikiArticleModal(item) {
 
   document.getElementById('viewWikiContent').innerHTML = renderMarkdown(item.content);
 
-  const askBtn = document.getElementById('btnAskFeliciaAboutWiki');
+  const askBtn = document.getElementById('btnAskRebornAboutWiki');
   askBtn.onclick = () => {
     modal.close();
     switchTab('tab-comms');
@@ -1138,7 +1257,7 @@ function renderBuildsGrid() {
   grid.innerHTML = '';
   if (state.buildsList.length === 0) {
     grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#64748B; font-family:var(--font-tactical); font-size:16px;">
-      NO SAVED BUILDS IN VAULT. TAP 'SAVE NEW LOADOUT' OR ASK F.E.L.I.C.I.A. TO CRAFT ONE!
+      NO SAVED BUILDS IN VAULT. TAP 'SAVE NEW LOADOUT' OR ASK R.E.B.O.R.N. TO CRAFT ONE!
     </div>`;
     return;
   }
@@ -1229,7 +1348,7 @@ function renderBuildsGrid() {
       ${build.notes ? `<p style="font-size:12px; color:#64748B; line-height:1.3; font-style:italic;">"${build.notes}"</p>` : ''}
 
       <div class="wiki-card-footer">
-        <button class="btn-card-action btn-equip-chat">Review with F.E.L.I.C.I.A. &rarr;</button>
+        <button class="btn-card-action btn-equip-chat">Review with R.E.B.O.R.N. &rarr;</button>
         <button class="btn-card-action btn-card-delete" data-id="${build.id}">Delete</button>
       </div>
     `;
@@ -1371,8 +1490,8 @@ function renderGodRollsGrid() {
       </div>
 
       <div class="gr-card-footer">
-        <button class="btn-gr-action btn-gr-ask" title="Consult F.E.L.I.C.I.A. on this weapon">
-          <span>🗣️ Consult F.E.L.I.C.I.A.</span>
+        <button class="btn-gr-action btn-gr-ask" title="Consult R.E.B.O.R.N. on this weapon">
+          <span>🗣️ Consult R.E.B.O.R.N.</span>
         </button>
         <button class="btn-gr-action btn-gr-edit" title="Edit God Roll info">
           <span>✏️ Edit</span>
@@ -1537,7 +1656,7 @@ function openEditGodRollModal(weapon = null) {
 /* ==========================================================================
    NAVIGATION & TAB SWITCHING WITH CLAN PASSCODE SECURITY
    ========================================================================== */
-const CLAN_SECURITY_PASSCODE = '3354242';
+const CLAN_SECURITY_PASSCODE = null; // Verified server-side via /api/auth/clan/verify
 let pendingSecurityAction = null;
 
 function isClanAuthorized() {
@@ -1734,7 +1853,7 @@ function initSpeechRecognition() {
   const recognizer = new SpeechRecognition();
   recognizer.continuous = false;
   recognizer.interimResults = false;
-  recognizer.lang = 'en-GB'; // Scottish / UK English dialect preference
+  recognizer.lang = 'en-US'; // Tactical voice input
 
   let isListening = false;
 
@@ -1776,7 +1895,7 @@ function initSpeechRecognition() {
 }
 
 /* ==========================================================================
-   BUNGIE.NET INVENTORY, VAULT & "ASK F.E.L.I.C.I.A." ENGINE
+   BUNGIE.NET INVENTORY, VAULT & "ASK R.E.B.O.R.N." ENGINE
    ========================================================================== */
 const BUNGIE_STORAGE_KEY = 'felicia_bungie_session';
 
@@ -1837,7 +1956,8 @@ function saveBungieSession(sess) {
 function startBungieLogin() {
   sfx.playTransmit();
   const origin = encodeURIComponent(window.location.origin);
-  window.location.href = `/api/auth/bungie/login?origin=${origin}`;
+  const apiBase = window.__REBORN_API_BASE || '';
+  window.location.href = `${apiBase}/api/auth/bungie/login?origin=${origin}`;
 }
 
 function getGodRollScanFlagKey() {
@@ -2173,7 +2293,7 @@ function renderInventoryHeaderAndSwitcher() {
 
     colWrap.appendChild(cardWrap);
 
-    // Saved In-Game Loadouts + F.E.L.I.C.I.A. Custom AI Loadouts Strip directly under this Character
+    // Saved In-Game Loadouts + R.E.B.O.R.N. Custom AI Loadouts Strip directly under this Character
     const loadouts = ch.loadouts || [];
     const customLoadouts = getCustomLoadoutsForClass(ch.className);
     const totalLoadoutCount = loadouts.length + customLoadouts.length;
@@ -2833,10 +2953,10 @@ function openItemInspectModal(item) {
       feedbackEl.classList.add('hidden');
       feedbackEl.classList.remove('error');
     }
-    const feliciaPanel = document.getElementById('inspectFeliciaPanel');
+    const feliciaPanel = document.getElementById('inspectRebornPanel');
     if (feliciaPanel) feliciaPanel.classList.add('hidden');
 
-    // Populate Action Buttons: Send to Hunter / Warlock / Titan / Vault + Signature "Ask F.E.L.I.C.I.A."
+    // Populate Action Buttons: Send to Hunter / Warlock / Titan / Vault + Signature "Ask R.E.B.O.R.N."
     const actionsGrid = document.getElementById('inspectActionsGrid');
     if (actionsGrid) {
       actionsGrid.innerHTML = '';
@@ -2845,8 +2965,8 @@ function openItemInspectModal(item) {
 
       if (item.category === 'Artifact') {
         // Artifacts are account-wide in modern Destiny 2:
-        // If equipped on the active character: ONLY "Ask F.E.L.I.C.I.A."
-        // If not equipped on the active character: "Equip Artifact" + "Ask F.E.L.I.C.I.A."
+        // If equipped on the active character: ONLY "Ask R.E.B.O.R.N."
+        // If not equipped on the active character: "Equip Artifact" + "Ask R.E.B.O.R.N."
         const isEquippedOnActive = item.isEquipped && (!activeChar || item.characterId === activeChar.characterId);
         if (!isEquippedOnActive && activeChar) {
           const equipBtn = document.createElement('button');
@@ -2857,13 +2977,13 @@ function openItemInspectModal(item) {
           actionsGrid.appendChild(equipBtn);
         }
 
-        // Signature Action: Ask F.E.L.I.C.I.A.
+        // Signature Action: Ask R.E.B.O.R.N.
         const askBtn = document.createElement('button');
         askBtn.type = 'button';
         askBtn.className = 'btn-item-action btn-ask-felicia';
-        askBtn.id = 'btnTriggerAskFelicia';
-        askBtn.innerHTML = `<span>❖</span> Ask F.E.L.I.C.I.A.`;
-        askBtn.addEventListener('click', () => triggerAskFeliciaOnItem(item));
+        askBtn.id = 'btnTriggerAskReborn';
+        askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
+        askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
         actionsGrid.appendChild(askBtn);
       } else {
         chars.forEach(ch => {
@@ -2911,13 +3031,13 @@ function openItemInspectModal(item) {
           actionsGrid.appendChild(lockBtn);
         }
 
-        // Signature Action: Ask F.E.L.I.C.I.A.
+        // Signature Action: Ask R.E.B.O.R.N.
         const askBtn = document.createElement('button');
         askBtn.type = 'button';
         askBtn.className = 'btn-item-action btn-ask-felicia';
-        askBtn.id = 'btnTriggerAskFelicia';
-        askBtn.innerHTML = `<span>❖</span> Ask F.E.L.I.C.I.A.`;
-        askBtn.addEventListener('click', () => triggerAskFeliciaOnItem(item));
+        askBtn.id = 'btnTriggerAskReborn';
+        askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
+        askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
         actionsGrid.appendChild(askBtn);
       }
     }
@@ -3120,7 +3240,7 @@ async function executeItemTransfer(item, targetType, targetCharacterId, targetLa
 
     if (!res.ok || !data) {
       const errorMsg = data?.reply || data?.detail || (res.status >= 500 
-        ? "Vanguard communications relay hit atmospheric turbulence on the server! Felicia is reconnecting—give it another quick transmission." 
+        ? "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission." 
         : `Vanguard uplink responded with status ${res.status}`);
       throw new Error(errorMsg);
     }
@@ -3153,12 +3273,12 @@ async function executeItemTransfer(item, targetType, targetCharacterId, targetLa
   }
 }
 
-async function triggerAskFeliciaOnItem(item) {
+async function triggerAskRebornOnItem(item) {
   sfx.playTransmit();
-  const panel = document.getElementById('inspectFeliciaPanel');
-  const bodyEl = document.getElementById('inspectFeliciaBody');
+  const panel = document.getElementById('inspectRebornPanel');
+  const bodyEl = document.getElementById('inspectRebornBody');
   const pillEl = document.getElementById('inspectVerdictPill');
-  const askBtn = document.getElementById('btnTriggerAskFelicia');
+  const askBtn = document.getElementById('btnTriggerAskReborn');
 
   if (!panel || !bodyEl) return;
   panel.classList.remove('hidden');
@@ -3169,7 +3289,7 @@ async function triggerAskFeliciaOnItem(item) {
   bodyEl.innerHTML = `
     <div style="display:flex; align-items:center; gap:10px; color:var(--vanguard-amber); font-family:var(--font-tactical);">
       <div class="inv-spinner" style="width:20px; height:20px; border-width:2px;"></div>
-      <span>F.E.L.I.C.I.A. is scanning rolled sockets &amp; Clan God Roll archives for <strong>${escapeHtml(item.name)}</strong>...</span>
+      <span>R.E.B.O.R.N. is scanning rolled sockets &amp; Clan God Roll archives for <strong>${escapeHtml(item.name)}</strong>...</span>
     </div>
   `;
 
@@ -3206,7 +3326,7 @@ async function triggerAskFeliciaOnItem(item) {
     }
   } catch (err) {
     sfx.playAlert();
-    bodyEl.innerHTML = `<p style="color:#FCA5A5;">Could not reach F.E.L.I.C.I.A.: ${escapeHtml(err.message)}</p>`;
+    bodyEl.innerHTML = `<p style="color:#FCA5A5;">Could not reach R.E.B.O.R.N.: ${escapeHtml(err.message)}</p>`;
   } finally {
     if (askBtn) askBtn.disabled = false;
   }
@@ -3917,7 +4037,7 @@ function saveCustomLoadoutToStorage(draft) {
 
   const record = {
     id,
-    title: (draft.title || 'F.E.L.I.C.I.A. Custom Loadout').trim(),
+    title: (draft.title || 'R.E.B.O.R.N. Custom Loadout').trim(),
     className: draft.className || 'Hunter',
     subclass: draft.subclass || 'Solar',
     subclassInstanceId: draft.subclassItem?.itemInstanceId || '',
@@ -4131,7 +4251,7 @@ function parseBlueprintFromTextFallback(text, meta = {}, forceRecommend = false)
 
   return {
     isBuildRecommendation: true,
-    title: `F.E.L.I.C.I.A. // ${subclass} ${className} (${mode})`,
+    title: `R.E.B.O.R.N. // ${subclass} ${className} (${mode})`,
     className,
     subclass,
     mode,
@@ -4198,7 +4318,7 @@ function assembleLoadoutFromBlueprint(blueprint = {}) {
   const className = blueprint.className || getActiveCharacter()?.className || 'Hunter';
   const subclass = blueprint.subclass || 'Solar';
   const mode = (blueprint.mode || 'PVE').toUpperCase();
-  const title = blueprint.title || `F.E.L.I.C.I.A. // ${subclass} ${className} (${mode})`;
+  const title = blueprint.title || `R.E.B.O.R.N. // ${subclass} ${className} (${mode})`;
 
   const { character, weapons, armor, subclasses } = collectAllOwnedGearForLoadout(className);
   const targetCharId = character?.characterId || '';
@@ -4537,7 +4657,7 @@ function collectArtifactPresetsAndPerks(targetClassName, blueprint = {}) {
   }
 
   // Also include any AI-recommended artifact perks from blueprint
-  (blueprint.artifactPerks || []).forEach(pName => registerPerk({ name: pName, description: 'Recommended by F.E.L.I.C.I.A.' }));
+  (blueprint.artifactPerks || []).forEach(pName => registerPerk({ name: pName, description: 'Recommended by R.E.B.O.R.N.' }));
   (blueprint.selectedArtifactPerks || []).forEach(registerPerk);
 
   return {
@@ -5104,7 +5224,7 @@ function optimizeLoadoutForTargetStats(draft) {
   if (!draft) return null;
   const { armor } = collectAllOwnedGearForLoadout(draft.className);
   if (!armor || armor.length === 0) {
-    showToast('Sign in to Bungie.net so F.E.L.I.C.I.A. can search your Inventory & Vault armor!', 'info');
+    showToast('Sign in to Bungie.net so R.E.B.O.R.N. can search your Inventory & Vault armor!', 'info');
     return null;
   }
 
@@ -5462,7 +5582,7 @@ function renderInlineChatLoadoutCard(containerEl, blueprint) {
   if (equipBtn) {
     equipBtn.addEventListener('click', async () => {
       if (!state.bungieData || !state.bungieSession?.access_token) {
-        showToast('Sign in to Bungie.net first so F.E.L.I.C.I.A. can equip your Guardian!', 'info');
+        showToast('Sign in to Bungie.net first so R.E.B.O.R.N. can equip your Guardian!', 'info');
         switchTab('tab-inventory');
         return;
       }
@@ -5524,7 +5644,7 @@ function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
   const feedbackEl = document.getElementById('lbFeedbackBanner');
   const pickerDrawer = document.getElementById('lbSlotPickerDrawer');
 
-  if (nameInput) nameInput.value = activeLoadoutBuilderState.title || 'F.E.L.I.C.I.A. Tactical Build';
+  if (nameInput) nameInput.value = activeLoadoutBuilderState.title || 'R.E.B.O.R.N. Tactical Build';
   if (classSelect) classSelect.value = activeLoadoutBuilderState.className || 'Hunter';
   if (subclassSelect) subclassSelect.value = activeLoadoutBuilderState.subclass || 'Solar';
   if (modeSelect) modeSelect.value = activeLoadoutBuilderState.mode || 'PVE';
@@ -5650,7 +5770,7 @@ function renderLoadoutBuilderWorkspace() {
     bpBox.innerHTML = `
       <div class="lb-bp-header">
         <div>
-          <span>❖ F.E.L.I.C.I.A. RECOMMENDED SUBCLASS &amp; ABILITY CONFIGURATION</span>
+          <span>❖ R.E.B.O.R.N. RECOMMENDED SUBCLASS &amp; ABILITY CONFIGURATION</span>
           <span class="lb-bp-edit-hint">✏️ Click any Super, Aspect, Fragment, or Ability below to customize</span>
         </div>
         <span class="lb-bp-sub-tag">${escapeHtml(draft.subclass.toUpperCase())} ${escapeHtml(draft.className.toUpperCase())} // ${escapeHtml(draft.mode)}</span>
@@ -5937,7 +6057,7 @@ function renderLoadoutBuilderWorkspace() {
     ? `
       <div class="lb-stat-opt-report">
         <div class="lb-stat-opt-report-top">
-          <span>✓ <strong>F.E.L.I.C.I.A. INVENTORY + VAULT STAT SOLVER COMPLETE:</strong> Hit ${draft.statOptReport.metCount}/${draft.statOptReport.activeTargetCount} Target Stat Goals!</span>
+          <span>✓ <strong>R.E.B.O.R.N. INVENTORY + VAULT STAT SOLVER COMPLETE:</strong> Hit ${draft.statOptReport.metCount}/${draft.statOptReport.activeTargetCount} Target Stat Goals!</span>
           ${draft.statOptReport.pulledItemsCount > 0 ? `<span class="lb-opt-badge">🔄 Swapped ${draft.statOptReport.pulledItemsCount} Armor Piece(s)</span>` : '<span class="lb-opt-badge">✓ Current Armor Optimal</span>'}
         </div>
         ${draft.statOptReport.pulledItemNames?.length ? `<div class="lb-stat-opt-report-line">🛡️ <strong>Selected Gear:</strong> ${escapeHtml(draft.statOptReport.pulledItemNames.join(' • '))}</div>` : ''}
@@ -6034,7 +6154,7 @@ function renderLoadoutBuilderWorkspace() {
             <button type="button" class="btn-tactical btn-primary btn-sm" id="btnLbOptimizeTargetStats" title="Search all Armor across your Equipped Gear, Character Bags &amp; Vault + auto-assign +10/+5 Armor Stat Mods to hit your Target Stats!">
               🧠 Search Inventory, Vault &amp; Setup to Hit Target Stats
             </button>
-            <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnLbAskAiStatSetup" title="Ask F.E.L.I.C.I.A. in AI Chat to analyze your Vault &amp; setup for these Target Stats">
+            <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnLbAskAiStatSetup" title="Ask R.E.B.O.R.N. in AI Chat to analyze your Vault &amp; setup for these Target Stats">
               ❖ Ask AI Advisor
             </button>
           </div>
@@ -6139,7 +6259,7 @@ function renderLoadoutBuilderWorkspace() {
     });
   }
 
-  // Wire Ask F.E.L.I.C.I.A. AI Advisor for Target Stats
+  // Wire Ask R.E.B.O.R.N. AI Advisor for Target Stats
   const btnAskAiStat = workspace.querySelector('#btnLbAskAiStatSetup');
   if (btnAskAiStat) {
     btnAskAiStat.addEventListener('click', () => {
@@ -7374,7 +7494,7 @@ function syncDismantleToolbarState(summary) {
 
 function renderScannerModalContent() {
   const summary = collectInventoryAndVaultGodRolls();
-  const msgEl = document.getElementById('scannerFeliciaMsg');
+  const msgEl = document.getElementById('scannerRebornMsg');
   const kpiEl = document.getElementById('scannerKpiStrip');
   const listEl = document.getElementById('scannerResultsList');
   const lockAllBtn = document.getElementById('btnLockAllGodRolls');
@@ -7573,7 +7693,7 @@ async function lockAllScannedGodRolls() {
   }
   if (feedbackEl) {
     feedbackEl.classList.remove('hidden', 'error');
-    feedbackEl.textContent = `F.E.L.I.C.I.A. is locking your ${targets.length} #1 Best God Rolls on Bungie.net (skipping any weaker duplicates)...`;
+    feedbackEl.textContent = `R.E.B.O.R.N. is locking your ${targets.length} #1 Best God Rolls on Bungie.net (skipping any weaker duplicates)...`;
   }
   sfx.playTransmit();
 
@@ -7655,8 +7775,8 @@ async function executeDismantlePrep(unlockOnly = false, explicitEntries = null) 
   if (feedbackEl) {
     feedbackEl.classList.remove('hidden', 'error');
     feedbackEl.textContent = unlockOnly
-      ? `F.E.L.I.C.I.A. is unlocking ${entries.length} weaker duplicate / trash ${entries.length === 1 ? 'weapon' : 'weapons'}...`
-      : `F.E.L.I.C.I.A. is unlocking & pulling ${entries.length} dismantle ${entries.length === 1 ? 'candidate' : 'candidates'} onto your ${targetClassName}...`;
+      ? `R.E.B.O.R.N. is unlocking ${entries.length} weaker duplicate / trash ${entries.length === 1 ? 'weapon' : 'weapons'}...`
+      : `R.E.B.O.R.N. is unlocking & pulling ${entries.length} dismantle ${entries.length === 1 ? 'candidate' : 'candidates'} onto your ${targetClassName}...`;
   }
   sfx.playTransmit();
 
@@ -7855,8 +7975,8 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="msg-avatar"><div class="ghost-mini-core"></div></div>
               <div class="msg-bubble">
                 <div class="msg-header">
-                  <span class="msg-sender">F.E.L.I.C.I.A.</span>
-                  <span class="msg-tag">SCOTTISH CONSTRUCT</span>
+                  <span class="msg-sender">R.E.B.O.R.N.</span>
+                  <span class="msg-tag">TACTICAL GHOST RELAY</span>
                 </div>
                 <div class="msg-content">Comms screen cleared, Guardian! What's next on our agenda?</div>
               </div>
@@ -7906,12 +8026,28 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   if (formSecurityPasscode) {
-    formSecurityPasscode.addEventListener('submit', (e) => {
+    formSecurityPasscode.addEventListener('submit', async (e) => {
       e.preventDefault();
       const enteredCode = (inputSecurityPasscode.value || '').trim();
-      if (enteredCode === CLAN_SECURITY_PASSCODE) {
+      if (!enteredCode) return;
+
+      let verified = false;
+      try {
+        const res = await fetch('/api/auth/clan/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passcode: enteredCode }),
+        });
+        const data = await res.json().catch(() => null);
+        verified = Boolean(res.ok && data?.authorized);
+      } catch (_) {
+        verified = false;
+      }
+
+      if (verified) {
         sessionStorage.setItem('felicia_clan_auth', 'true');
-        sfx.playReceive();
+        sessionStorage.setItem('reborn_clan_passcode', enteredCode);
+        sfx.playRevive?.();
         modalSecurityPasscode.close();
         const action = pendingSecurityAction;
         pendingSecurityAction = null;
@@ -9043,7 +9179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnResyncScanner = document.getElementById('btnResyncScanner');
   const modalSavedLoadout = document.getElementById('modalSavedLoadout');
   const btnEquipSavedLoadout = document.getElementById('btnEquipSavedLoadout');
-  const btnAskFeliciaLoadout = document.getElementById('btnAskFeliciaLoadout');
+  const btnAskRebornLoadout = document.getElementById('btnAskRebornLoadout');
 
   if (btnScanGodRolls) {
     btnScanGodRolls.addEventListener('click', () => openGodRollScannerModal());
@@ -9165,8 +9301,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  if (btnAskFeliciaLoadout) {
-    btnAskFeliciaLoadout.addEventListener('click', () => {
+  if (btnAskRebornLoadout) {
+    btnAskRebornLoadout.addEventListener('click', () => {
       if (!state.inspectedLoadout) return;
       const { character, loadout } = state.inspectedLoadout;
       const wSummary = (loadout.weapons || []).map(w => `${w.slot}: ${w.name}`).join(', ');
@@ -9428,7 +9564,7 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTabDirect('tab-comms');
       if (state.lastAppraisalReply) {
         appendMessage('user', 'GUARDIAN', `Evaluate my ${it.name} (${perksSummary || it.typeName})`);
-        appendMessage('felicia', 'F.E.L.I.C.I.A.', state.lastAppraisalReply);
+        appendMessage('felicia', 'R.E.B.O.R.N.', state.lastAppraisalReply);
         state.chatHistory.push({ role: 'user', content: `Evaluate my ${it.name} (${perksSummary || it.typeName})` });
         state.chatHistory.push({ role: 'model', content: state.lastAppraisalReply });
       }
@@ -10525,3 +10661,10 @@ function init3DGuardianAndInspectTheatre() {
     });
   });
 })();
+
+// R.E.B.O.R.N. v3.1 Enhancement Bridge
+if (typeof window !== 'undefined') {
+  window.__rebornVoice = voice;
+  window.__rebornState = state;
+  window.__openLoadoutFromBlueprint = (bp) => openLoadoutBuilderModal(bp, true);
+}

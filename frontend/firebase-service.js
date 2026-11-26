@@ -1,5 +1,5 @@
 /**
- * F.E.L.I.C.I.A. // Firebase Modular Web Service (v10)
+ * R.E.B.O.R.N. // Firebase Modular Web Service (v10)
  * Project: ping-vault-matrix
  * Features: Firebase Auth (Google, Email/Password, Phone) + Cloud Firestore
  */
