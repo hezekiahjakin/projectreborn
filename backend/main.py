@@ -16,7 +16,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 import requests
+from requests.adapters import HTTPAdapter
 import re
+
+_http = requests.Session()
+_http_adapter = HTTPAdapter(pool_connections=24, pool_maxsize=24)
+_http.mount("https://", _http_adapter)
+_http.mount("http://", _http_adapter)
 import html as html_lib
 import xml.etree.ElementTree as ET
 
@@ -270,15 +276,15 @@ def query_gemini_api(prompt_text: str, conversation_history: List[Dict[str, str]
     if not api_key:
         return "ERROR_FALLBACK: GEMINI_API_KEY not configured"
     
-    # Priority cascade: fast production, preview, and lite models
+    # Priority cascade: fastest production 2.5 Flash first, then resilient fallbacks
     candidate_models = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
         "gemini-2.0-flash",
-        "gemini-1.5-flash",
         "gemini-flash-latest",
-        "gemini-3.1-flash-lite-preview",
-        "gemini-flash-lite-latest",
         "gemini-3-flash-preview",
-        "gemini-3.1-pro-preview"
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3.1-pro-preview",
     ]
     
     # Build contents array
@@ -314,7 +320,7 @@ def query_gemini_api(prompt_text: str, conversation_history: List[Dict[str, str]
     for model_name in candidate_models:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
-            resp = requests.post(url, json=payload, timeout=18)
+            resp = _http.post(url, json=payload, timeout=18)
             if resp.status_code == 200:
                 data = resp.json()
                 candidates = data.get("candidates", [])
@@ -1067,7 +1073,7 @@ def _synthesize_ghost_speech(text: str) -> bytes:
             },
         },
     }
-    resp = requests.post(url, json=payload, timeout=35)
+    resp = _http.post(url, json=payload, timeout=35)
     if resp.status_code >= 400:
         raise RuntimeError(f"Gemini TTS error ({resp.status_code}): {resp.text[:220]}")
     data = resp.json()
@@ -2750,6 +2756,17 @@ async def bungie_friend_action_endpoint(body: BungieFriendActionRequest, req: Re
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
+
+@app.on_event("startup")
+def _warmup_caches_on_startup():
+    """Preload Compendium, Wiki, and God Rolls into memory at boot so first requests are instant."""
+    try:
+        get_compendium_db()
+        get_all_wiki_data()
+        get_all_god_rolls()
+    except Exception:
+        pass
 
 
 # Mount frontend directory for static assets

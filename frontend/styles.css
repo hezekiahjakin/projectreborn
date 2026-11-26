@@ -8292,6 +8292,19 @@ dialog.modal-loadout-builder::backdrop {
   color: #FECACA;
 }
 
+/* 60fps Virtualized Layout/Paint Skipping for Large Vault & Catalog Grids */
+.gear-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 92px 86px;
+}
+
+.wiki-card,
+.godroll-card,
+.friend-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
+}
+
 /* Inventory Weapon Type & Damage Type Filter Dropdowns */
 .inv-weapon-dropdowns {
   display: flex;

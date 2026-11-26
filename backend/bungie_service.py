@@ -11,6 +11,23 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Any, Set, Tuple
 import requests
+from requests.adapters import HTTPAdapter
+
+_http = requests.Session()
+_http_adapter = HTTPAdapter(pool_connections=32, pool_maxsize=32)
+_http.mount("https://", _http_adapter)
+_http.mount("http://", _http_adapter)
+
+
+def _open_fast_sqlite(db_path: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path, timeout=15)
+    try:
+        conn.execute("PRAGMA mmap_size=268435456;")
+        conn.execute("PRAGMA temp_store=MEMORY;")
+        conn.execute("PRAGMA cache_size=-32000;")
+    except Exception:
+        pass
+    return conn
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -219,7 +236,7 @@ def exchange_code_for_tokens(code: str) -> dict:
         "client_id": creds["client_id"],
     }
 
-    resp = requests.post(BUNGIE_OAUTH_TOKEN, headers=headers, data=data, timeout=15)
+    resp = _http.post(BUNGIE_OAUTH_TOKEN, headers=headers, data=data, timeout=15)
     if resp.status_code != 200:
         raise RuntimeError(f"Bungie token exchange failed (HTTP {resp.status_code}): {resp.text[:300]}")
 
@@ -262,7 +279,7 @@ def refresh_bungie_tokens(refresh_token: str) -> dict:
         "client_id": creds["client_id"],
     }
 
-    resp = requests.post(BUNGIE_OAUTH_TOKEN, headers=headers, data=data, timeout=15)
+    resp = _http.post(BUNGIE_OAUTH_TOKEN, headers=headers, data=data, timeout=15)
     if resp.status_code != 200:
         raise RuntimeError(f"Token refresh failed (HTTP {resp.status_code}): {resp.text[:250]}")
 
@@ -596,7 +613,7 @@ def resolve_plug_sets(plug_set_hashes: Set[int], api_key: str) -> Dict[int, List
 
     try:
         db_path = ensure_manifest_db(api_key)
-        conn = sqlite3.connect(db_path)
+        conn = _open_fast_sqlite(db_path)
         try:
             for i in range(0, len(missing), 400):
                 chunk = missing[i : i + 400]
@@ -754,7 +771,7 @@ def resolve_item_definitions(hashes: Set[int], api_key: str) -> Dict[int, dict]:
         return result
 
     db_path = ensure_manifest_db(api_key)
-    conn = sqlite3.connect(db_path)
+    conn = _open_fast_sqlite(db_path)
     try:
         # Query in chunks of 500 to stay well below SQLite parameter limits
         for i in range(0, len(missing), 500):
@@ -768,7 +785,7 @@ def resolve_item_definitions(hashes: Set[int], api_key: str) -> Dict[int, dict]:
             for sid, raw_json in rows:
                 uh = _from_sqlite_id(sid)
                 slim = _slim_item_def(json.loads(raw_json))
-                if len(_item_mem_cache) < 6000:
+                if len(_item_mem_cache) < 18000:
                     _item_mem_cache[uh] = slim
                 result[uh] = slim
     finally:
@@ -821,7 +838,7 @@ def _bungie_get(path: str, api_key: str, access_token: str = "") -> dict:
     headers = {"X-API-Key": api_key}
     if access_token:
         headers["Authorization"] = f"Bearer {access_token}"
-    resp = requests.get(f"{BUNGIE_API_BASE}{path}", headers=headers, timeout=20)
+    resp = _http.get(f"{BUNGIE_API_BASE}{path}", headers=headers, timeout=20)
     if resp.status_code == 401:
         raise PermissionError("BUNGIE_TOKEN_EXPIRED")
     data = resp.json()
@@ -836,7 +853,7 @@ def _bungie_post(path: str, payload: dict, api_key: str, access_token: str) -> d
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    resp = requests.post(f"{BUNGIE_API_BASE}{path}", headers=headers, json=payload, timeout=20)
+    resp = _http.post(f"{BUNGIE_API_BASE}{path}", headers=headers, json=payload, timeout=20)
     if resp.status_code == 401:
         raise PermissionError("BUNGIE_TOKEN_EXPIRED")
     data = resp.json()
@@ -4002,7 +4019,7 @@ def search_bungie_players(query: str, page: int = 0) -> dict:
         "X-API-Key": api_key,
         "Content-Type": "application/json",
     }
-    resp = requests.post(
+    resp = _http.post(
         f"{BUNGIE_API_BASE}/User/Search/GlobalName/{int(page)}/",
         headers=headers,
         json={"displayNamePrefix": prefix},
@@ -4071,7 +4088,7 @@ def perform_bungie_friend_action(access_token: str, action: str, bungie_membersh
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json",
     }
-    resp = requests.post(f"{BUNGIE_API_BASE}{path}", headers=headers, json={}, timeout=15)
+    resp = _http.post(f"{BUNGIE_API_BASE}{path}", headers=headers, json={}, timeout=15)
     if resp.status_code == 401:
         raise PermissionError("BUNGIE_TOKEN_EXPIRED")
 

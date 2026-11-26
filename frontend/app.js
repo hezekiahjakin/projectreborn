@@ -25,7 +25,7 @@ import {
   Destiny3DStage,
   ICONIC_DESTINY_SHADERS,
   searchManifestShaders
-} from './tgxm-viewer.js?v=20261126_v59';
+} from './tgxm-viewer.js?v=20261126_v60';
 
 // Application State
 const state = {
@@ -135,13 +135,13 @@ class GhostAudioEngine {
     this.lastHoverAt = 0;
     this.suppressHoverUntil = 0;
     this.urls = {
-      hover: './sfx/hover.wav?v=20261126_v59',
-      equip: './sfx/equip.wav?v=20261126_v59',
-      inspect: './sfx/inspect.wav?v=20261126_v59',
-      characterSelect: './sfx/character_select.m4a?v=20261126_v59',
-      ghostScan: './sfx/ghost_scan.m4a?v=20261126_v59',
-      revive: './sfx/revive.m4a?v=20261126_v59',
-      crucibleKill: './sfx/crucible_kill.m4a?v=20261126_v59',
+      hover: './sfx/hover.wav?v=20261126_v60',
+      equip: './sfx/equip.wav?v=20261126_v60',
+      inspect: './sfx/inspect.wav?v=20261126_v60',
+      characterSelect: './sfx/character_select.m4a?v=20261126_v60',
+      ghostScan: './sfx/ghost_scan.m4a?v=20261126_v60',
+      revive: './sfx/revive.m4a?v=20261126_v60',
+      crucibleKill: './sfx/crucible_kill.m4a?v=20261126_v60',
     };
     this._preloadRaw();
   }
@@ -2769,7 +2769,38 @@ function renderInventoryStage() {
   }
 }
 
+let _vaultRenderToken = 0;
+
+function appendGridItemsChunked(gridEl, items, initialSync = 48, chunkSize = 80, offsetBase = 0) {
+  const token = _vaultRenderToken;
+  const firstBatchEnd = Math.min(items.length, initialSync);
+  const frag0 = document.createDocumentFragment();
+  for (let i = 0; i < firstBatchEnd; i++) {
+    frag0.appendChild(createGearCardElement(items[i], { deferOffscreen: (offsetBase + i) >= 36 }));
+  }
+  gridEl.appendChild(frag0);
+
+  if (firstBatchEnd >= items.length) return;
+
+  let cursor = firstBatchEnd;
+  const step = () => {
+    if (token !== _vaultRenderToken || !gridEl.isConnected) return;
+    const end = Math.min(items.length, cursor + chunkSize);
+    const frag = document.createDocumentFragment();
+    for (let i = cursor; i < end; i++) {
+      frag.appendChild(createGearCardElement(items[i], { deferOffscreen: true }));
+    }
+    gridEl.appendChild(frag);
+    cursor = end;
+    if (cursor < items.length) {
+      requestAnimationFrame(step);
+    }
+  };
+  requestAnimationFrame(step);
+}
+
 function renderVaultView(stage, vaultItems) {
+  _vaultRenderToken++;
   const filtered = vaultItems.filter(itemMatchesFilter);
   const weapons = filtered.filter(i => i.category === 'Weapon');
   const armor = filtered.filter(i => i.category === 'Armor');
@@ -2796,11 +2827,8 @@ function renderVaultView(stage, vaultItems) {
     `;
     const wGrid = document.createElement('div');
     wGrid.className = 'vault-grid';
-    weapons.forEach(w => {
-      const defer = globalRenderIdx >= 36;
-      globalRenderIdx++;
-      wGrid.appendChild(createGearCardElement(w, { deferOffscreen: defer }));
-    });
+    appendGridItemsChunked(wGrid, weapons, 48, 80, globalRenderIdx);
+    globalRenderIdx += weapons.length;
     wSec.appendChild(wGrid);
     stage.appendChild(wSec);
   }
@@ -2815,11 +2843,8 @@ function renderVaultView(stage, vaultItems) {
     `;
     const aGrid = document.createElement('div');
     aGrid.className = 'vault-grid';
-    armor.forEach(a => {
-      const defer = globalRenderIdx >= 36;
-      globalRenderIdx++;
-      aGrid.appendChild(createGearCardElement(a, { deferOffscreen: defer }));
-    });
+    appendGridItemsChunked(aGrid, armor, globalRenderIdx < 48 ? 48 : 24, 80, globalRenderIdx);
+    globalRenderIdx += armor.length;
     aSec.appendChild(aGrid);
     stage.appendChild(aSec);
   }
@@ -2834,11 +2859,7 @@ function renderVaultView(stage, vaultItems) {
     `;
     const artGrid = document.createElement('div');
     artGrid.className = 'vault-grid';
-    artifacts.forEach(a => {
-      const defer = globalRenderIdx >= 36;
-      globalRenderIdx++;
-      artGrid.appendChild(createGearCardElement(a, { deferOffscreen: defer }));
-    });
+    appendGridItemsChunked(artGrid, artifacts, 24, 60, globalRenderIdx);
     artSec.appendChild(artGrid);
     stage.appendChild(artSec);
   }
@@ -9108,12 +9129,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (invSearchInput) {
+    let invSearchTimer = null;
     invSearchInput.addEventListener('input', (e) => {
-      state.invFilter.search = e.target.value;
+      const val = e.target.value;
+      state.invFilter.search = val;
       if (btnClearInvSearch) {
-        btnClearInvSearch.classList.toggle('hidden', !e.target.value);
+        btnClearInvSearch.classList.toggle('hidden', !val);
       }
-      renderInventoryStage();
+      clearTimeout(invSearchTimer);
+      invSearchTimer = setTimeout(() => renderInventoryStage(), 90);
     });
   }
 
@@ -9619,16 +9643,19 @@ document.addEventListener('DOMContentLoaded', () => {
   state.bungieSession = loadSavedBungieSession();
   updateBungieAuthUI();
   if (state.bungieSession) {
-    loadBungieInventory(false);
+    hydrateCachedBungieInventory();
+    loadBungieInventory(Boolean(state.bungieData));
   }
-  fetchBungieServerConfigStatus();
 
   initSpeechRecognition();
-  loadWikiData();
-  loadGodRolls();
-  loadBuilds();
-  loadMobileConnectInfo();
   initFieldAdvisoryModal();
+  Promise.allSettled([
+    fetchBungieServerConfigStatus(),
+    loadWikiData(),
+    loadGodRolls(),
+    loadBuilds(),
+    loadMobileConnectInfo(),
+  ]);
 });
 
 /* ==========================================================================
