@@ -269,6 +269,7 @@ export class DestinyGhost3DAvatar {
     const isSpeaking = Boolean(st.isSpeaking);
     const isThinking = Boolean(st.isThinking);
     const isListening = Boolean(st.isListening);
+    const glitch = Number(st.ghostGlitchPulse || 0);
 
     // Update subclass/shader palette smoothly
     const sh = SHADER_HEX[st.shader] || SHADER_HEX[st.subclass] || SHADER_HEX.vanguard;
@@ -324,18 +325,20 @@ export class DestinyGhost3DAvatar {
       this.pokeSpin = 0;
     }
 
-    // Buoyant Destiny Ghost hover
+    // Buoyant Destiny Ghost hover + subtle comms glitch twitch
+    const glitchJitterX = glitch > 0 ? (Math.random() - 0.5) * 0.09 : 0;
+    const glitchJitterRoll = glitch > 0 ? (Math.random() - 0.5) * 0.24 : 0;
     const hoverY = Math.sin(this.time * 2.1) * 0.12 + (isSpeaking ? this.smoothAudio * 0.14 : 0);
     const hoverZ = isListening ? 0.35 : (isSpeaking ? this.smoothAudio * 0.18 : 0);
     this.ghostRoot.position.set(
-      Math.cos(this.time * 1.1) * 0.04,
+      Math.cos(this.time * 1.1) * 0.04 + glitchJitterX,
       hoverY,
       hoverZ
     );
     this.ghostRoot.rotation.set(
       this.curLookY,
       this.curLookX + this.pokeSpin,
-      talkRollZ
+      talkRollZ + glitchJitterRoll
     );
 
     // Shell ring rotation (counter-rotating during Thinking, expressive flutter when Speaking!)

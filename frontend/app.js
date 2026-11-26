@@ -39,6 +39,8 @@ const state = {
   soundEnabled: true,
   autoSpeak: false,
   handsFreeVoice: false,
+  ghostVoiceFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_ghost_fx')) !== 'false',
+  ghostGlitchPulse: 0,
   responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
   isListening: false,
   activeTtsProvider: 'elevenlabs',
@@ -351,11 +353,13 @@ class RebornAudioSpeechEngine {
     if (!AudioCtx) return null;
     if (!this._ctx || this._ctx.state === 'closed') {
       try {
-        this._ctx = new AudioCtx();
-        this._analyser = this._ctx.createAnalyser();
+        const ctx = new AudioCtx();
+        this._ctx = ctx;
+        this._analyser = ctx.createAnalyser();
         this._analyser.fftSize = 256;
         this._analyserData = new Uint8Array(this._analyser.frequencyBinCount);
-        this._analyser.connect(this._ctx.destination);
+        this._analyser.connect(ctx.destination);
+        this._initGhostDspBus(ctx);
       } catch (_) {
         return null;
       }
@@ -366,29 +370,229 @@ class RebornAudioSpeechEngine {
     return this._ctx;
   }
 
-  playCommsTone(isStart = true) {
+  _initGhostDspBus(ctx) {
+    // Master Destiny 2 Ghost DSP Chain: preserves ElevenLabs PFWTXPnrVxMf7COApT6N clarity
+    // while adding Bungie-style crystalline dual-delay harmonics, subtle ring-mod shimmer, & glitch gate
+    const input = ctx.createGain();
+    const glitchGate = ctx.createGain();
+    glitchGate.gain.value = 1.0;
+    input.connect(glitchGate);
+
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 115;
+
+    const presence = ctx.createBiquadFilter();
+    presence.type = 'peaking';
+    presence.frequency.value = 2650;
+    presence.Q.value = 1.15;
+    presence.gain.value = 3.2;
+
+    glitchGate.connect(hp);
+    hp.connect(presence);
+
+    const dryGain = ctx.createGain();
+    dryGain.gain.value = 0.86;
+    presence.connect(dryGain);
+
+    // Wet A & B: Dual detuned metallic Ghost shell resonators
+    const wetHp = ctx.createBiquadFilter();
+    wetHp.type = 'highpass';
+    wetHp.frequency.value = 380;
+    presence.connect(wetHp);
+
+    const delayA = ctx.createDelay(0.1);
+    delayA.delayTime.value = 0.0095;
+    const fbA = ctx.createGain();
+    fbA.gain.value = 0.22;
+    delayA.connect(fbA);
+    fbA.connect(delayA);
+    const wetGainA = ctx.createGain();
+    wetGainA.gain.value = 0.23;
+    wetHp.connect(delayA);
+    delayA.connect(wetGainA);
+
+    const delayB = ctx.createDelay(0.1);
+    delayB.delayTime.value = 0.0185;
+    const fbB = ctx.createGain();
+    fbB.gain.value = 0.18;
+    delayB.connect(fbB);
+    fbB.connect(delayB);
+    const wetGainB = ctx.createGain();
+    wetGainB.gain.value = 0.16;
+    wetHp.connect(delayB);
+    delayB.connect(wetGainB);
+
+    // Subtle LFO modulation on the two Ghost resonators
+    const lfoA = ctx.createOscillator();
+    lfoA.type = 'sine';
+    lfoA.frequency.value = 1.85;
+    const lfoDepthA = ctx.createGain();
+    lfoDepthA.gain.value = 0.00045;
+    lfoA.connect(lfoDepthA);
+    lfoDepthA.connect(delayA.delayTime);
+    lfoA.start();
+
+    const lfoB = ctx.createOscillator();
+    lfoB.type = 'sine';
+    lfoB.frequency.value = 3.15;
+    const lfoDepthB = ctx.createGain();
+    lfoDepthB.gain.value = 0.00055;
+    lfoB.connect(lfoDepthB);
+    lfoDepthB.connect(delayB.delayTime);
+    lfoB.start();
+
+    // Subtle Synthetic Ring-Modulator Harmonic Shimmer (74Hz carrier)
+    const ringBp = ctx.createBiquadFilter();
+    ringBp.type = 'bandpass';
+    ringBp.frequency.value = 1850;
+    ringBp.Q.value = 0.9;
+    presence.connect(ringBp);
+
+    const ringModNode = ctx.createGain();
+    ringModNode.gain.value = 0;
+    const ringCarrier = ctx.createOscillator();
+    ringCarrier.type = 'sine';
+    ringCarrier.frequency.value = 74;
+    ringCarrier.connect(ringModNode.gain);
+    ringCarrier.start();
+
+    const ringMix = ctx.createGain();
+    ringMix.gain.value = 0.085;
+    ringBp.connect(ringModNode);
+    ringModNode.connect(ringMix);
+
+    // Studio Glue Compressor -> Master Analyser
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16;
+    comp.knee.value = 12;
+    comp.ratio.value = 3.5;
+
+    dryGain.connect(comp);
+    wetGainA.connect(comp);
+    wetGainB.connect(comp);
+    ringMix.connect(comp);
+    comp.connect(this._analyser);
+
+    this._ghostFxInput = input;
+    this._glitchGate = glitchGate;
+  }
+
+  _playNoiseSquelch(ctx, duration = 0.028, vol = 0.026, centerFreq = 2600) {
+    try {
+      const len = Math.max(64, Math.floor(ctx.sampleRate * duration));
+      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const ch = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = centerFreq;
+      bp.Q.value = 2.4;
+      const g = ctx.createGain();
+      g.gain.value = vol;
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      src.start();
+    } catch (_) {}
+  }
+
+  playCommsTone(mode = 'open') {
     if (!state.soundEnabled || typeof window === 'undefined') return;
     try {
       const ctx = this.unlock();
       if (!ctx) return;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
       const now = ctx.currentTime;
-      if (isStart) {
-        osc.frequency.setValueAtTime(520, now);
-        osc.frequency.exponentialRampToValueAtTime(860, now + 0.055);
+
+      if (mode === true || mode === 'open') {
+        // Destiny Ghost Crystalline Wake Trill + Comms Squelch
+        this._playNoiseSquelch(ctx, 0.024, 0.024, 2900);
+        const freqs = [680, 1020, 1480];
+        freqs.forEach((f, idx) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = idx === 2 ? 'sine' : 'triangle';
+          const t0 = now + idx * 0.032;
+          osc.frequency.setValueAtTime(f, t0);
+          osc.frequency.exponentialRampToValueAtTime(f * 1.12, t0 + 0.035);
+          g.gain.setValueAtTime(0.032, t0);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start(t0);
+          osc.stop(t0 + 0.055);
+        });
+      } else if (mode === 'glitch') {
+        // Subtle Mid-Speech Comms Telemetry Blip + Micro-Stutter
+        state.ghostGlitchPulse = 1.0;
+        setTimeout(() => { state.ghostGlitchPulse = 0; }, 160);
+        this._playNoiseSquelch(ctx, 0.018, 0.016, 3400);
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'sine';
+        const f1 = 1650 + Math.random() * 1100;
+        osc.frequency.setValueAtTime(f1, now);
+        osc.frequency.setValueAtTime(f1 * (Math.random() > 0.5 ? 1.35 : 0.74), now + 0.018);
+        g.gain.setValueAtTime(0.018, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.042);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.045);
+
+        if (this._glitchGate && state.ghostVoiceFx !== false) {
+          const gg = this._glitchGate.gain;
+          gg.cancelScheduledValues(now);
+          gg.setValueAtTime(1.0, now);
+          gg.setValueAtTime(0.32, now + 0.006);
+          gg.setValueAtTime(1.0, now + 0.024);
+          gg.setValueAtTime(0.48, now + 0.036);
+          gg.setValueAtTime(1.0, now + 0.054);
+        }
       } else {
-        osc.frequency.setValueAtTime(720, now);
-        osc.frequency.exponentialRampToValueAtTime(420, now + 0.05);
+        // Comms Close Chirp + Radio Squelch Tail
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1040, now);
+        osc.frequency.exponentialRampToValueAtTime(520, now + 0.065);
+        g.gain.setValueAtTime(0.03, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+        this._playNoiseSquelch(ctx, 0.03, 0.02, 2200);
       }
-      gain.gain.setValueAtTime(0.035, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.075);
     } catch (_) {}
+  }
+
+  _startCommsGlitchLoop(genId) {
+    this._stopCommsGlitchLoop();
+    if (state.ghostVoiceFx === false) return;
+    const scheduleNext = () => {
+      const delayMs = 1900 + Math.random() * 2400;
+      this._glitchTimer = setTimeout(() => {
+        if (!state.isSpeaking || genId !== this._genId) return;
+        if (state.ghostVoiceFx !== false) {
+          this.playCommsTone('glitch');
+        }
+        scheduleNext();
+      }, delayMs);
+    };
+    scheduleNext();
+  }
+
+  _stopCommsGlitchLoop() {
+    if (this._glitchTimer) {
+      clearTimeout(this._glitchTimer);
+      this._glitchTimer = null;
+    }
+    state.ghostGlitchPulse = 0;
   }
 
   getAudioLevel() {
@@ -476,8 +680,9 @@ class RebornAudioSpeechEngine {
           if (genId !== this._genId) return;
           const src = ctx.createBufferSource();
           src.buffer = audioBuffer;
-          src.playbackRate.value = 1.0; // Pure untouched ElevenLabs studio voice!
-          src.connect(this._analyser);
+          src.playbackRate.value = 1.0;
+          const targetBus = (state.ghostVoiceFx !== false && this._ghostFxInput) ? this._ghostFxInput : this._analyser;
+          src.connect(targetBus);
           this._activeSource = src;
           return await new Promise((resolve) => {
             src.onended = () => {
@@ -582,20 +787,24 @@ class RebornAudioSpeechEngine {
         }
         if (i === 0) {
           this._setSpeakingUi(true, currentData.provider);
-          this.playCommsTone(true);
+          this.playCommsTone('open');
+          this._startCommsGlitchLoop(genId);
           updateConstructMood(
             currentData.provider === 'elevenlabs'
-              ? 'TRANSMITTING // ELEVENLABS GHOST'
+              ? 'TRANSMITTING // ELEVENLABS GHOST COMMS'
               : 'TRANSMITTING // FALLBACK GHOST RELAY'
           );
+        } else if (state.ghostVoiceFx !== false) {
+          this.playCommsTone('glitch');
         }
         await this._playDecodedChunk(currentData.buf, currentData.mime, currentData.provider, genId);
         if (genId !== this._genId) return;
       }
 
       if (genId === this._genId) {
+        this._stopCommsGlitchLoop();
         this._setSpeakingUi(false);
-        this.playCommsTone(false);
+        this.playCommsTone('close');
         updateConstructMood('STATUS: STANDBY // SCANNING');
         if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
           setTimeout(() => window.__startHandsFreeMic(), 450);
@@ -610,6 +819,7 @@ class RebornAudioSpeechEngine {
 
   stop() {
     this._genId++;
+    this._stopCommsGlitchLoop();
     if (this._abortCtrl) {
       try { this._abortCtrl.abort(); } catch (_) {}
       this._abortCtrl = null;
@@ -2103,7 +2313,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v71');
+    const mod = await import('./ghost-3d.js?v=20261126_v72');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
@@ -2332,9 +2542,21 @@ function initSpeechRecognition() {
   // Wire AI Comms Voice Bar Controls (ElevenLabs Locked Primary Voice)
   const styleSel = document.getElementById('commsResponseStyle');
   const btnTestVoice = document.getElementById('btnCommsTestVoice');
+  const btnGhostFx = document.getElementById('btnCommsGhostFx');
   const btnAutoSpeak = document.getElementById('btnCommsAutoSpeak');
   const btnHandsFree = document.getElementById('btnCommsHandsFree');
   const btnStopVoice = document.getElementById('btnCommsStopVoice');
+
+  if (btnGhostFx) {
+    btnGhostFx.classList.toggle('active', state.ghostVoiceFx !== false);
+    btnGhostFx.addEventListener('click', () => {
+      state.ghostVoiceFx = !state.ghostVoiceFx;
+      try { localStorage.setItem('reborn_ghost_fx', String(state.ghostVoiceFx)); } catch (_) {}
+      btnGhostFx.classList.toggle('active', state.ghostVoiceFx);
+      sfx.playChirp();
+      showToast(state.ghostVoiceFx ? '❖ Destiny Ghost Robotic & Comms FX Enabled' : '🎧 Raw ElevenLabs Voice (Ghost FX Off)', 'info');
+    });
+  }
 
   if (btnTestVoice) {
     btnTestVoice.addEventListener('click', () => {
