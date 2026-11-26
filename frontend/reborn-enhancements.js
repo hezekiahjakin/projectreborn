@@ -6,7 +6,7 @@
  * - Automatic X-Clan-Passcode header injection on protected admin/write endpoints
  */
 
-const RENDER_BACKEND_URL = 'https://feliciadatabase.onrender.com';
+const RENDER_BACKEND_URL = 'https://projectreborn.onrender.com';
 const IS_FIREBASE_HOST = typeof window !== 'undefined' && (
   window.location.hostname.endsWith('.web.app') ||
   window.location.hostname.endsWith('.firebaseapp.com')

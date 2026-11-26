@@ -1703,8 +1703,21 @@ function switchTabDirect(tabId) {
   sfx.playChirp();
 
   document.querySelectorAll('.nav-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tabId);
+    const isMatch = btn.dataset.tab === tabId;
+    btn.classList.toggle('active', isMatch);
+    if (isMatch) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
   });
+
+  const moreMenu = document.getElementById('navMoreMenu');
+  const btnMore = document.getElementById('btnNavMore');
+  if (btnMore && moreMenu) {
+    const insideMore = Boolean(moreMenu.querySelector(`.nav-tab[data-tab="${tabId}"]`));
+    btnMore.classList.toggle('active', insideMore);
+    if (moreMenu.hasAttribute('popover')) {
+      try { moreMenu.hidePopover?.(); } catch (_) {}
+    }
+  }
 
   document.querySelectorAll('.tab-pane').forEach(pane => {
     pane.classList.toggle('active', pane.id === tabId);
@@ -7889,7 +7902,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Canvas
   ghostRenderer = new GhostCanvasRenderer('ghostCanvas');
 
-  // Navigation Tabs
+  // Navigation Tabs & Responsive "More" Popover Sync
+  if (!Object.hasOwn(HTMLElement.prototype, 'popover')) {
+    import('https://unpkg.com/@oddbird/popover-polyfill@latest/dist/popover.min.js').catch(() => {});
+  }
+  const navMoreMenu = document.getElementById('navMoreMenu');
+  const btnNavMore = document.getElementById('btnNavMore');
+  if (navMoreMenu && btnNavMore) {
+    const navWideMq = window.matchMedia('(min-width: 768px)');
+    const syncNavMoreMode = () => {
+      if (navWideMq.matches) {
+        if (navMoreMenu.hasAttribute('popover')) {
+          try { navMoreMenu.hidePopover?.(); } catch (_) {}
+          navMoreMenu.removeAttribute('popover');
+        }
+        btnNavMore.setAttribute('aria-expanded', 'false');
+      } else if (!navMoreMenu.hasAttribute('popover')) {
+        navMoreMenu.setAttribute('popover', 'auto');
+      }
+    };
+    syncNavMoreMode();
+    navWideMq.addEventListener('change', syncNavMoreMode);
+    navMoreMenu.addEventListener('toggle', (ev) => {
+      btnNavMore.setAttribute('aria-expanded', ev.newState === 'open' ? 'true' : 'false');
+    });
+  }
   document.querySelectorAll('.nav-tab').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });

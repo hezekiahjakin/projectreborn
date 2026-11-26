@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v60">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v60">
+  <link rel="stylesheet" href="styles.css?v=20261126_v61">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v61">
 </head>
 <body class="theme-vanguard">
 
@@ -51,36 +51,44 @@
   <!-- Main View Container -->
   <main class="hud-main">
 
-    <!-- Left / Top Navigation Rail -->
-    <nav class="hud-nav" id="hudNav">
-      <button class="nav-tab active" data-tab="tab-inventory">
-        <span class="nav-icon">🎒</span>
+    <!-- Left / Bottom Navigation Rail -->
+    <nav class="hud-nav" id="hudNav" aria-label="Primary">
+      <button class="nav-tab active" type="button" data-tab="tab-inventory" aria-current="page">
+        <span class="nav-icon" aria-hidden="true">🎒</span>
         <span class="nav-title">Inventory</span>
       </button>
-      <button class="nav-tab" data-tab="tab-loadout-builder">
-        <span class="nav-icon">🛠️</span>
-        <span class="nav-title">Loadout Builder</span>
+      <button class="nav-tab" type="button" data-tab="tab-loadout-builder">
+        <span class="nav-icon" aria-hidden="true">🛠️</span>
+        <span class="nav-title">Loadouts</span>
       </button>
-      <button class="nav-tab" data-tab="tab-comms">
-        <span class="nav-icon">📡</span>
+      <button class="nav-tab" type="button" data-tab="tab-comms">
+        <span class="nav-icon" aria-hidden="true">📡</span>
         <span class="nav-title">AI Chat</span>
       </button>
-      <button class="nav-tab" data-tab="tab-wiki">
-        <span class="nav-icon">📚</span>
-        <span class="nav-title">Guides</span>
+      <button class="nav-tab" type="button" data-tab="tab-vault">
+        <span class="nav-icon" aria-hidden="true">🎯</span>
+        <span class="nav-title">God Rolls</span>
       </button>
-      <button class="nav-tab" data-tab="tab-friends">
-        <span class="nav-icon">👥</span>
-        <span class="nav-title">Friends</span>
-      </button>
-      <button class="nav-tab" data-tab="tab-vault">
-        <span class="nav-icon">🎯</span>
-        <span class="nav-title">God Roll Finder</span>
-      </button>
-      <button class="nav-tab" data-tab="tab-settings">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-title">Admin Settings</span>
-      </button>
+      <div class="nav-more-wrap">
+        <button class="nav-more-btn" type="button" id="btnNavMore" popovertarget="navMoreMenu" popovertargetaction="toggle" aria-controls="navMoreMenu" aria-expanded="false">
+          <span class="nav-icon" aria-hidden="true">⋯</span>
+          <span class="nav-title">More</span>
+        </button>
+        <div id="navMoreMenu" class="nav-more-menu" popover="auto">
+          <button class="nav-tab" type="button" data-tab="tab-wiki">
+            <span class="nav-icon" aria-hidden="true">📚</span>
+            <span class="nav-title">Guides</span>
+          </button>
+          <button class="nav-tab" type="button" data-tab="tab-friends">
+            <span class="nav-icon" aria-hidden="true">👥</span>
+            <span class="nav-title">Friends</span>
+          </button>
+          <button class="nav-tab" type="button" data-tab="tab-settings">
+            <span class="nav-icon" aria-hidden="true">⚙️</span>
+            <span class="nav-title">Settings</span>
+          </button>
+        </div>
+      </div>
     </nav>
 
     <!-- TAB 0 (NEW HOME PAGE): GUARDIAN INVENTORY & VAULT MANAGER -->
@@ -614,7 +622,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
           <div class="form-group">
             <label>OAUTH CLIENT SECRET (CONFIDENTIAL APP)</label>
             <input type="password" id="inputBungieClientSecret" class="input-tactical" placeholder="Enter Confidential Client Secret (leave blank to keep existing)">
-            <span class="field-hint" id="bungieConfigHint">Redirect URL: <code>https://feliciadatabase.onrender.com/api/auth/bungie/callback</code></span>
+            <span class="field-hint" id="bungieConfigHint">Redirect URL: <code>https://projectreborn.onrender.com/api/auth/bungie/callback</code></span>
           </div>
 
           <button type="button" class="btn-tactical btn-primary" id="btnSaveBungieConfig">Save Bungie Credentials</button>
@@ -1925,7 +1933,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v60"></script>
-  <script type="module" src="app.js?v=20261126_v60"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v61"></script>
+  <script type="module" src="app.js?v=20261126_v61"></script>
 </body>
 </html>

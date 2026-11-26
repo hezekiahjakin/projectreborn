@@ -25,7 +25,7 @@
   --r-radius-md: 14px;
   --r-radius-lg: 20px;
   --r-header-h: 58px;
-  --r-bottom-nav-h: 66px;
+  --r-bottom-nav-h: 58px;
   --r-safe-bottom: env(safe-area-inset-bottom, 0px);
   --r-safe-top: env(safe-area-inset-top, 0px);
   --r-font-display: 'Chakra Petch', 'Rajdhani', system-ui, sans-serif;
@@ -44,6 +44,7 @@
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  scroll-padding-bottom: calc(var(--r-bottom-nav-h) + var(--r-safe-bottom) + 12px);
   background-color: var(--r-bg-void);
   overflow-x: hidden;
 }
@@ -232,76 +233,149 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   right: 0;
   bottom: 0;
   z-index: 920;
-  display: flex !important;
-  flex-direction: row !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: stretch;
-  justify-content: flex-start;
   gap: 4px;
   width: 100% !important;
   height: auto !important;
   min-height: calc(var(--r-bottom-nav-h) + var(--r-safe-bottom));
-  padding: 6px 8px calc(6px + var(--r-safe-bottom)) 8px !important;
+  padding: 4px max(6px, env(safe-area-inset-left, 0px)) calc(4px + var(--r-safe-bottom)) max(6px, env(safe-area-inset-right, 0px)) !important;
   background: rgba(7, 11, 21, 0.94) !important;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-top: 1px solid rgba(56, 189, 248, 0.24) !important;
   border-right: none !important;
   border-bottom: none !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  overflow: visible;
   box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.55);
 }
 
-.hud-nav::-webkit-scrollbar {
-  display: none;
+.hud-nav .nav-more-wrap {
+  display: flex;
+  min-width: 0;
 }
 
-.hud-nav .nav-tab {
-  flex: 1 0 82px;
-  min-width: 82px;
-  scroll-snap-align: center;
+.hud-nav .nav-tab,
+.hud-nav .nav-more-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 46px;
+  width: 100%;
   display: flex !important;
   flex-direction: column !important;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 6px 8px !important;
-  border-radius: 12px !important;
+  gap: 2px;
+  padding: 5px 4px !important;
+  border-radius: 10px !important;
   border: 1px solid transparent !important;
   background: transparent !important;
   color: var(--r-text-muted) !important;
   font-family: var(--r-font-tactical);
   font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 
-.hud-nav .nav-tab .nav-icon {
-  font-size: 19px;
+.hud-nav .nav-more-btn {
+  anchor-name: --nav-more-btn;
+}
+
+.hud-nav .nav-tab .nav-icon,
+.hud-nav .nav-more-btn .nav-icon {
+  font-size: 18px;
   line-height: 1;
 }
 
-.hud-nav .nav-tab .nav-title {
+.hud-nav .nav-tab .nav-title,
+.hud-nav .nav-more-btn .nav-title {
   font-size: 10.5px !important;
   line-height: 1.1;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 78px;
+  max-width: 100%;
 }
 
-.hud-nav .nav-tab.active {
+.hud-nav .nav-tab:focus-visible,
+.hud-nav .nav-more-btn:focus-visible {
+  outline: 2px solid var(--r-cyan);
+  outline-offset: -2px;
+}
+
+.hud-nav .nav-tab.active,
+.hud-nav .nav-tab[aria-current="page"],
+.hud-nav .nav-more-btn.active {
   background: rgba(56, 189, 248, 0.15) !important;
   border-color: rgba(56, 189, 248, 0.42) !important;
   color: #FFFFFF !important;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.18) inset;
+  box-shadow: inset 0 -2px 0 var(--r-cyan), 0 0 14px rgba(56, 189, 248, 0.16) inset;
 }
 
-.hud-nav .nav-tab.active .nav-title {
+.hud-nav .nav-tab.active .nav-title,
+.hud-nav .nav-tab[aria-current="page"] .nav-title,
+.hud-nav .nav-more-btn.active .nav-title {
   color: var(--r-cyan) !important;
+}
+
+/* Mobile "More" Popover Menu */
+.nav-more-menu[popover] {
+  position: fixed;
+  inset: auto;
+  right: max(10px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--r-bottom-nav-h) + var(--r-safe-bottom) + 10px);
+  inset-block-end: anchor(--nav-more-btn top);
+  margin: 0 0 10px 0;
+  padding: 6px;
+  inline-size: min(210px, calc(100dvw - 20px));
+  max-block-size: calc(100dvh - var(--r-bottom-nav-h) - 32px);
+  overflow-y: auto;
+  background: rgba(11, 17, 32, 0.97);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(56, 189, 248, 0.36);
+  border-radius: var(--r-radius-md);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+  color: var(--r-text);
+  z-index: 950;
+}
+
+.nav-more-menu[popover]:is(:popover-open, .\:popover-open) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@supports not selector(:popover-open) {
+  .nav-more-menu[popover]:not(.\:popover-open) {
+    display: none;
+  }
+}
+
+.nav-more-menu .nav-tab {
+  flex: none !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  gap: 10px !important;
+  min-height: 44px;
+  padding: 10px 12px !important;
+  width: 100%;
+  border-radius: 10px !important;
+}
+
+.nav-more-menu .nav-tab .nav-title {
+  font-size: 13px !important;
+  letter-spacing: 0.04em;
+}
+
+@media (forced-colors: active) {
+  .hud-nav .nav-tab.active,
+  .hud-nav .nav-tab[aria-current="page"],
+  .hud-nav .nav-more-btn.active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
 }
 
 /* Tab Pane visibility */
@@ -591,6 +665,10 @@ dialog.hud-modal .modal-footer {
    8. TABLET BREAKPOINT (>= 768px) — TRANSITION TO TOP NAV RAIL & MULTI-COL
    -------------------------------------------------------------------------- */
 @media (min-width: 768px) {
+  html {
+    scroll-padding-bottom: 16px;
+  }
+
   .hud-header {
     padding: 12px 24px;
   }
@@ -604,8 +682,11 @@ dialog.hud-modal .modal-footer {
     position: sticky !important;
     top: var(--r-header-h);
     bottom: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap;
     min-height: auto !important;
-    padding: 10px 16px !important;
+    padding: 8px 14px !important;
     margin-bottom: 18px;
     border-top: none !important;
     border: 1px solid var(--r-border) !important;
@@ -616,11 +697,22 @@ dialog.hud-modal .modal-footer {
     gap: 6px;
   }
 
+  .hud-nav .nav-more-wrap,
+  .hud-nav .nav-more-menu {
+    display: contents !important;
+  }
+
+  .hud-nav .nav-more-btn {
+    display: none !important;
+  }
+
   .hud-nav .nav-tab {
-    flex: 0 1 auto;
+    flex: 0 1 auto !important;
+    width: auto !important;
     min-width: auto;
+    min-height: 40px;
     flex-direction: row !important;
-    gap: 7px;
+    gap: 7px !important;
     padding: 8px 14px !important;
   }
 
@@ -631,6 +723,11 @@ dialog.hud-modal .modal-footer {
   .hud-nav .nav-tab .nav-title {
     font-size: 13px !important;
     max-width: none;
+  }
+
+  .hud-nav .nav-more-menu .nav-tab {
+    width: auto !important;
+    justify-content: center !important;
   }
 
   .hud-main {
