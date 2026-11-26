@@ -1424,7 +1424,8 @@ def verify_clan_passcode_endpoint(body: ClanPasscodeRequest):
 async def tts_endpoint(req: TTSRequest):
     try:
         audio_bytes, media_type = await run_in_threadpool(_synthesize_ghost_speech, req.text, req.voice or "", req.style or "")
-        return Response(content=audio_bytes, media_type=media_type)
+        provider = "elevenlabs" if media_type == "audio/mpeg" else "gemini"
+        return Response(content=audio_bytes, media_type=media_type, headers={"X-TTS-Provider": provider})
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:

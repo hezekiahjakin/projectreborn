@@ -38,8 +38,8 @@ const state = {
   shader: 'solar',       // 'stasis', 'void', 'arc', 'solar', 'strand', 'prismatic'
   soundEnabled: true,
   autoSpeak: false,
-  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice')) || 'elevenlabs',
-  voiceRadioFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_radio_fx')) !== 'false',
+  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice_v2')) || 'elevenlabs',
+  voiceRadioFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_radio_fx_v2')) === 'true',
   handsFreeVoice: false,
   responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
   isListening: false,
@@ -441,79 +441,117 @@ class RoboticGhostVoiceEngine {
     if (stopBtn) stopBtn.classList.toggle('hidden', !active);
   }
 
-  async playNeuralGhostAudio(arrayBuffer) {
+  async playNeuralGhostAudio(arrayBuffer, mimeType = 'audio/mpeg') {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) throw new Error('Web Audio API unavailable');
-    if (this._activeAudioCtx) {
-      try { this._activeAudioCtx.close(); } catch (_) {}
+    if (AudioCtx) {
+      try {
+        if (this._activeAudioCtx) {
+          try { this._activeAudioCtx.close(); } catch (_) {}
+        }
+        const ctx = new AudioCtx();
+        this._activeAudioCtx = ctx;
+        if (ctx.state === 'suspended') {
+          await ctx.resume().catch(() => {});
+        }
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuffer;
+        const rate = state.voiceRadioFx ? Math.max(0.85, Math.min(1.25, state.voiceRate || 1.0)) : 1.0;
+        src.playbackRate.value = rate;
+
+        const comp = ctx.createDynamicsCompressor();
+        comp.threshold.value = -16;
+        comp.ratio.value = 3;
+
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        this._analyser = analyser;
+        this._analyserData = new Uint8Array(analyser.frequencyBinCount);
+
+        if (state.voiceRadioFx === true) {
+          const hp = ctx.createBiquadFilter();
+          hp.type = 'highpass';
+          hp.frequency.value = 250;
+
+          const lp = ctx.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = 4100;
+
+          const delay = ctx.createDelay(0.1);
+          delay.delayTime.value = 0.015;
+          const wetGain = ctx.createGain();
+          wetGain.gain.value = 0.14;
+          const dryGain = ctx.createGain();
+          dryGain.gain.value = 0.94;
+
+          src.connect(hp);
+          hp.connect(lp);
+          lp.connect(dryGain);
+          lp.connect(delay);
+          delay.connect(wetGain);
+          dryGain.connect(comp);
+          wetGain.connect(comp);
+        } else {
+          src.connect(comp);
+        }
+
+        comp.connect(analyser);
+        analyser.connect(ctx.destination);
+
+        this._setSpeakingUi(true);
+        this.playCommsTone(true);
+        const voiceTag = state.neuralVoice === 'elevenlabs' ? 'ELEVENLABS GHOST' : `${(state.neuralVoice || 'CHARON').toUpperCase()} NEURAL`;
+        updateConstructMood(`TRANSMITTING // ${voiceTag}`);
+
+        return await new Promise((resolve) => {
+          src.onended = () => {
+            this._setSpeakingUi(false);
+            this._analyser = null;
+            this._analyserData = null;
+            this.playCommsTone(false);
+            updateConstructMood('STATUS: STANDBY // SCANNING');
+            ctx.close().catch(() => {});
+            if (this._activeAudioCtx === ctx) this._activeAudioCtx = null;
+            if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
+              setTimeout(() => window.__startHandsFreeMic(), 450);
+            }
+            resolve();
+          };
+          src.start(0);
+        });
+      } catch (webAudioErr) {
+        console.warn('[Voice] WebAudio decode/play fallback to HTMLAudioElement:', webAudioErr);
+      }
     }
-    const ctx = new AudioCtx();
-    this._activeAudioCtx = ctx;
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-    const src = ctx.createBufferSource();
-    src.buffer = audioBuffer;
-    src.playbackRate.value = Math.max(0.8, Math.min(1.25, state.voiceRate || 1.02));
-
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.ratio.value = 4;
-
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    this._analyser = analyser;
-    this._analyserData = new Uint8Array(analyser.frequencyBinCount);
-
-    if (state.voiceRadioFx !== false) {
-      // Futuristic Robotic Ghost Radio + Metallic Comb FX Chain
-      const hp = ctx.createBiquadFilter();
-      hp.type = 'highpass';
-      hp.frequency.value = 250;
-
-      const lp = ctx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 4100;
-
-      const delay = ctx.createDelay(0.1);
-      delay.delayTime.value = 0.015;
-      const wetGain = ctx.createGain();
-      wetGain.gain.value = 0.15;
-      const dryGain = ctx.createGain();
-      dryGain.gain.value = 0.93;
-
-      src.connect(hp);
-      hp.connect(lp);
-      lp.connect(dryGain);
-      lp.connect(delay);
-      delay.connect(wetGain);
-      dryGain.connect(comp);
-      wetGain.connect(comp);
-    } else {
-      src.connect(comp);
-    }
-
-    comp.connect(analyser);
-    analyser.connect(ctx.destination);
-
+    // Direct HTMLAudioElement fallback (preserves ElevenLabs / Gemini neural voice on strict mobile browsers!)
+    const blob = new Blob([arrayBuffer], { type: mimeType || 'audio/mpeg' });
+    const blobUrl = URL.createObjectURL(blob);
+    const audioEl = new Audio(blobUrl);
+    this._activeHtmlAudio = audioEl;
     this._setSpeakingUi(true);
     this.playCommsTone(true);
-    updateConstructMood(`TRANSMITTING // ${(state.neuralVoice || 'CHARON').toUpperCase()} NEURAL GHOST`);
-
-    return new Promise((resolve) => {
-      src.onended = () => {
+    updateConstructMood('TRANSMITTING // ELEVENLABS GHOST');
+    return new Promise((resolve, reject) => {
+      audioEl.onended = () => {
+        URL.revokeObjectURL(blobUrl);
+        this._activeHtmlAudio = null;
         this._setSpeakingUi(false);
-        this._analyser = null;
-        this._analyserData = null;
         this.playCommsTone(false);
         updateConstructMood('STATUS: STANDBY // SCANNING');
-        ctx.close().catch(() => {});
-        if (this._activeAudioCtx === ctx) this._activeAudioCtx = null;
         if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
           setTimeout(() => window.__startHandsFreeMic(), 450);
         }
         resolve();
       };
-      src.start(0);
+      audioEl.onerror = (e) => {
+        URL.revokeObjectURL(blobUrl);
+        this._activeHtmlAudio = null;
+        this._setSpeakingUi(false);
+        reject(e);
+      };
+      audioEl.play().catch(reject);
     });
   }
 
@@ -533,21 +571,23 @@ class RoboticGhostVoiceEngine {
 
     if (!cleanText) return;
 
-    // 1. Try studio-grade Gemini Neural Ghost TTS + Web Audio FX first
+    // 1. Try studio-grade ElevenLabs / Gemini Neural Ghost TTS first
+    let respMime = 'audio/mpeg';
     fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         text: cleanText,
-        voice: state.neuralVoice || 'Charon',
+        voice: state.neuralVoice || 'elevenlabs',
         style: state.voiceRadioFx ? 'radio' : 'clean',
       }),
     })
       .then((res) => {
         if (!res.ok) throw new Error('Neural TTS unavailable');
+        respMime = res.headers.get('content-type') || 'audio/mpeg';
         return res.arrayBuffer();
       })
-      .then((buf) => this.playNeuralGhostAudio(buf))
+      .then((buf) => this.playNeuralGhostAudio(buf, respMime))
       .catch(() => {
         // 2. Seamless fallback to browser SpeechSynthesis male robotic Ghost cadence
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
@@ -587,6 +627,10 @@ class RoboticGhostVoiceEngine {
   }
 
   stop() {
+    if (this._activeHtmlAudio) {
+      try { this._activeHtmlAudio.pause(); this._activeHtmlAudio.currentTime = 0; } catch (_) {}
+      this._activeHtmlAudio = null;
+    }
     if (this._activeAudioCtx) {
       try { this._activeAudioCtx.close(); } catch (_) {}
       this._activeAudioCtx = null;
@@ -2312,7 +2356,7 @@ function initSpeechRecognition() {
       personaSel.value = state.neuralVoice || 'elevenlabs';
       personaSel.addEventListener('change', () => {
         state.neuralVoice = personaSel.value || 'elevenlabs';
-        try { localStorage.setItem('reborn_neural_voice', state.neuralVoice); } catch (_) {}
+        try { localStorage.setItem('reborn_neural_voice_v2', state.neuralVoice); } catch (_) {}
         sfx.playChirp();
         const label = state.neuralVoice === 'elevenlabs' ? 'R.E.B.O.R.N. (ElevenLabs)' : state.neuralVoice;
         showToast(`🤖 Ghost Voice switched to ${label}`, 'info');
@@ -2329,15 +2373,24 @@ function initSpeechRecognition() {
   }
 
   if (btnRadioFx) {
-    btnRadioFx.classList.toggle('active', state.voiceRadioFx !== false);
+    btnRadioFx.classList.toggle('active', state.voiceRadioFx === true);
     btnRadioFx.addEventListener('click', () => {
       state.voiceRadioFx = !state.voiceRadioFx;
-      try { localStorage.setItem('reborn_radio_fx', String(state.voiceRadioFx)); } catch (_) {}
+      try { localStorage.setItem('reborn_radio_fx_v2', String(state.voiceRadioFx)); } catch (_) {}
       btnRadioFx.classList.toggle('active', state.voiceRadioFx);
       sfx.playChirp();
-      showToast(state.voiceRadioFx ? '📻 Ghost Radio FX Enabled' : '🎧 Clean Studio Neural Voice Enabled', 'info');
+      showToast(state.voiceRadioFx ? '📻 Ghost Radio FX Enabled' : '🎧 Clean Studio ElevenLabs Voice Enabled', 'info');
     });
   }
+
+  // Wire initial greeting Listen button if present
+  document.querySelectorAll('#messagesContainer .btn-voice-play:not(.btn-msg-loadout-builder):not(.btn-msg-voice-listen)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sfx.playChirp();
+      const txt = btn.closest('.msg-bubble')?.querySelector('.msg-content')?.textContent?.trim() || '';
+      if (txt) voice.speak(txt);
+    });
+  });
 
   if (btnAutoSpeak) {
     btnAutoSpeak.classList.toggle('active', Boolean(state.autoSpeak));
