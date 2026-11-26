@@ -501,14 +501,14 @@ class RebornAudioSpeechEngine {
     const gg = this._glitchGate.gain;
     times.forEach((rel) => {
       const at = startAt + rel;
-      const sliceLen = 0.11;
+      const sliceLen = 0.09;
       const repeats = 3;
-      const sliceStart = Math.max(0, rel - 0.08);
+      const sliceStart = Math.max(0, rel - 0.065);
       const glitchSpan = sliceLen * repeats;
       // Duck original voice for the full stutter span
       gg.setValueAtTime(1.0, at);
-      gg.linearRampToValueAtTime(0.03, at + 0.004);
-      gg.setValueAtTime(0.03, at + glitchSpan);
+      gg.linearRampToValueAtTime(0.08, at + 0.004);
+      gg.setValueAtTime(0.08, at + glitchSpan);
       gg.linearRampToValueAtTime(1.0, at + glitchSpan + 0.015);
       // Stutter repeats (bypass gate so they are heard while voice is ducked)
       for (let r = 0; r < repeats; r++) {
@@ -517,7 +517,7 @@ class RebornAudioSpeechEngine {
           s.buffer = audioBuffer;
           s.playbackRate.value = [1.0, 1.09, 0.93][r] || 1.0;
           const sg = ctx.createGain();
-          sg.gain.value = 1.15;
+          sg.gain.value = 1.0;
           s.connect(sg);
           sg.connect(this._ghostFxInput);
           s.start(at + r * sliceLen, sliceStart, sliceLen);
@@ -526,7 +526,7 @@ class RebornAudioSpeechEngine {
       }
       // Static crackle burst (louder + spans the whole stutter)
       try {
-        const noiseDur = glitchSpan + 0.04;
+        const noiseDur = glitchSpan + 0.02;
         const len = Math.floor(ctx.sampleRate * noiseDur);
         const nb = ctx.createBuffer(1, len, ctx.sampleRate);
         const ch = nb.getChannelData(0);
@@ -541,7 +541,7 @@ class RebornAudioSpeechEngine {
         bp.frequency.value = 2900;
         bp.Q.value = 1.2;
         const ng = ctx.createGain();
-        ng.gain.value = 0.26;
+        ng.gain.value = 0.18;
         ns.connect(bp);
         bp.connect(ng);
         ng.connect(this._analyser);
@@ -557,8 +557,8 @@ class RebornAudioSpeechEngine {
         osc.frequency.setValueAtTime(f, at);
         osc.frequency.setValueAtTime(f * 1.4, at + 0.05);
         osc.frequency.setValueAtTime(f * 0.7, at + 0.1);
-        og.gain.setValueAtTime(0.05, at);
-        og.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+        og.gain.setValueAtTime(0.036, at);
+        og.gain.exponentialRampToValueAtTime(0.0001, at + 0.13);
         osc.connect(og);
         og.connect(this._analyser);
         osc.start(at);
@@ -607,17 +607,17 @@ class RebornAudioSpeechEngine {
 
       if (mode === true || mode === 'open') {
         // Destiny Ghost Crystalline Wake Trill + Comms Squelch
-        this._playNoiseSquelch(ctx, 0.07, 0.075, 2900);
+        this._playNoiseSquelch(ctx, 0.05, 0.055, 2900);
         const freqs = [680, 1020, 1480];
         freqs.forEach((f, idx) => {
           const osc = ctx.createOscillator();
           const g = ctx.createGain();
           osc.type = idx === 2 ? 'sine' : 'triangle';
-          const t0 = now + idx * 0.045;
+          const t0 = now + idx * 0.04;
           osc.frequency.setValueAtTime(f, t0);
           osc.frequency.exponentialRampToValueAtTime(f * 1.12, t0 + 0.05);
-          g.gain.setValueAtTime(0.06, t0);
-          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.085);
+          g.gain.setValueAtTime(0.047, t0);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
           osc.connect(g);
           g.connect(ctx.destination);
           osc.start(t0);
@@ -626,8 +626,8 @@ class RebornAudioSpeechEngine {
       } else if (mode === 'glitch') {
         // Mid-Speech Comms Telemetry Blip + Stutter
         state.ghostGlitchPulse = 1.0;
-        setTimeout(() => { state.ghostGlitchPulse = 0; }, 260);
-        this._playNoiseSquelch(ctx, 0.14, 0.085, 3200);
+        setTimeout(() => { state.ghostGlitchPulse = 0; }, 210);
+        this._playNoiseSquelch(ctx, 0.1, 0.06, 3200);
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
         osc.type = 'square';
@@ -635,8 +635,8 @@ class RebornAudioSpeechEngine {
         osc.frequency.setValueAtTime(f1, now);
         osc.frequency.setValueAtTime(f1 * (Math.random() > 0.5 ? 1.35 : 0.74), now + 0.045);
         osc.frequency.setValueAtTime(f1 * 1.1, now + 0.09);
-        g.gain.setValueAtTime(0.045, now);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+        g.gain.setValueAtTime(0.034, now);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.11);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(now);
@@ -658,13 +658,13 @@ class RebornAudioSpeechEngine {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(1040, now);
         osc.frequency.exponentialRampToValueAtTime(520, now + 0.1);
-        g.gain.setValueAtTime(0.055, now);
+        g.gain.setValueAtTime(0.045, now);
         g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
         osc.connect(g);
         g.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.13);
-        this._playNoiseSquelch(ctx, 0.09, 0.07, 2200);
+        this._playNoiseSquelch(ctx, 0.065, 0.05, 2200);
       }
     } catch (_) {}
   }
@@ -2435,7 +2435,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v74');
+    const mod = await import('./ghost-3d.js?v=20261126_v75');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
