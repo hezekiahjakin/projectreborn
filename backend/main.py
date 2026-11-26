@@ -1263,27 +1263,93 @@ _TTS_ALLOWED_VOICES = {
     "Puck": "sharp, witty Hunter recon Ghost male voice with energetic tactical banter",
     "Kore": "calm, precise futuristic AI construct voice with clean analytical clarity",
 }
-_tts_audio_cache: Dict[str, bytes] = {}
+DEFAULT_ELEVENLABS_VOICE_ID = "PFWTXPnrVxMf7COApT6N"
+_tts_audio_cache: Dict[str, tuple] = {}
 _tts_cache_lock = threading.RLock()
 
 
-def _synthesize_ghost_speech(text: str, voice_name: str = "", style_hint: str = "") -> bytes:
-    cfg = get_config()
-    api_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY not configured for neural TTS.")
-
-    tts_model = os.environ.get("GEMINI_TTS_MODEL") or "gemini-2.5-flash-preview-tts"
-    req_voice = (voice_name or "").strip()
-    tts_voice = req_voice if req_voice in _TTS_ALLOWED_VOICES else (os.environ.get("GEMINI_TTS_VOICE") or "Charon")
-    voice_prompt = _TTS_ALLOWED_VOICES.get(tts_voice, _TTS_ALLOWED_VOICES["Charon"])
-
+def _clean_tts_text(text: str) -> str:
     cleaned = re.sub(r"[*_`#>\[\]]+", "", (text or "")).strip()
-    cleaned = cleaned.replace("R.E.B.O.R.N.", "Reborn")[:1400]
+    return cleaned.replace("R.E.B.O.R.N.", "Reborn")[:1400]
+
+
+def _synthesize_elevenlabs_speech(cleaned: str, voice_id: str = "") -> tuple:
+    cfg = get_config()
+    el_key = (os.environ.get("ELEVENLABS_API_KEY") or cfg.get("elevenlabs_api_key") or "").strip()
+    if not el_key:
+        raise RuntimeError("ELEVENLABS_API_KEY not configured.")
+
+    vid = (voice_id or os.environ.get("ELEVENLABS_VOICE_ID") or DEFAULT_ELEVENLABS_VOICE_ID).strip()
+    if vid.lower() == "elevenlabs":
+        vid = (os.environ.get("ELEVENLABS_VOICE_ID") or DEFAULT_ELEVENLABS_VOICE_ID).strip()
+    model_id = (os.environ.get("ELEVENLABS_MODEL_ID") or "eleven_turbo_v2_5").strip()
+
+    cache_key = hashlib.md5(f"el|{vid}|{model_id}|{cleaned}".encode("utf-8")).hexdigest()
+    with _tts_cache_lock:
+        hit = _tts_audio_cache.get(cache_key)
+        if hit is not None:
+            return hit
+
+    headers = {
+        "xi-api-key": el_key,
+        "Accept": "audio/mpeg",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "text": cleaned,
+        "model_id": model_id,
+        "voice_settings": {
+            "stability": 0.45,
+            "similarity_boost": 0.78,
+            "style": 0.2,
+            "use_speaker_boost": True,
+        },
+    }
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{vid}"
+    resp = _http.post(url, headers=headers, json=payload, timeout=30)
+    if resp.status_code >= 400 and model_id != "eleven_multilingual_v2":
+        payload["model_id"] = "eleven_multilingual_v2"
+        resp = _http.post(url, headers=headers, json=payload, timeout=30)
+    if resp.status_code >= 400 or not resp.content:
+        raise RuntimeError(f"ElevenLabs TTS error ({resp.status_code}): {resp.text[:220]}")
+
+    result = (resp.content, "audio/mpeg")
+    with _tts_cache_lock:
+        if len(_tts_audio_cache) >= 32:
+            _tts_audio_cache.pop(next(iter(_tts_audio_cache)))
+        _tts_audio_cache[cache_key] = result
+    return result
+
+
+def _synthesize_ghost_speech(text: str, voice_name: str = "", style_hint: str = "") -> tuple:
+    cleaned = _clean_tts_text(text)
     if not cleaned:
         raise ValueError("Empty text for speech synthesis.")
 
-    cache_key = hashlib.md5(f"{tts_voice}|{style_hint}|{cleaned}".encode("utf-8")).hexdigest()
+    cfg = get_config()
+    req_voice = (voice_name or "").strip()
+    has_elevenlabs = bool((os.environ.get("ELEVENLABS_API_KEY") or cfg.get("elevenlabs_api_key") or "").strip())
+    wants_elevenlabs = (
+        req_voice.lower() == "elevenlabs"
+        or req_voice == DEFAULT_ELEVENLABS_VOICE_ID
+        or (not req_voice and has_elevenlabs)
+    )
+
+    if wants_elevenlabs and has_elevenlabs:
+        try:
+            return _synthesize_elevenlabs_speech(cleaned, DEFAULT_ELEVENLABS_VOICE_ID if req_voice.lower() in ("", "elevenlabs") else req_voice)
+        except Exception as el_exc:
+            logging.warning(f"[TTS] ElevenLabs failed, falling back to Gemini Neural TTS: {el_exc}")
+
+    api_key = os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key") or ""
+    if not api_key:
+        raise RuntimeError("Neither ELEVENLABS_API_KEY nor GEMINI_API_KEY is configured for neural TTS.")
+
+    tts_model = os.environ.get("GEMINI_TTS_MODEL") or "gemini-2.5-flash-preview-tts"
+    tts_voice = req_voice if req_voice in _TTS_ALLOWED_VOICES else (os.environ.get("GEMINI_TTS_VOICE") or "Charon")
+    voice_prompt = _TTS_ALLOWED_VOICES.get(tts_voice, _TTS_ALLOWED_VOICES["Charon"])
+
+    cache_key = hashlib.md5(f"gm|{tts_voice}|{style_hint}|{cleaned}".encode("utf-8")).hexdigest()
     with _tts_cache_lock:
         hit = _tts_audio_cache.get(cache_key)
         if hit is not None:
@@ -1321,11 +1387,12 @@ def _synthesize_ghost_speech(text: str, voice_name: str = "", style_hint: str = 
             raw = base64.b64decode(inline["data"])
             mime = (inline.get("mimeType") or inline.get("mime_type") or "").lower()
             wav = raw if "wav" in mime else _pcm_to_wav(raw)
+            result = (wav, "audio/wav")
             with _tts_cache_lock:
                 if len(_tts_audio_cache) >= 32:
                     _tts_audio_cache.pop(next(iter(_tts_audio_cache)))
-                _tts_audio_cache[cache_key] = wav
-            return wav
+                _tts_audio_cache[cache_key] = result
+            return result
     raise RuntimeError("Gemini TTS returned no audio payload.")
 
 
@@ -1339,6 +1406,8 @@ def health_endpoint():
         "version": "3.1.0",
         "system": "Recon, Engagement & Battlefield Optimization Relay Node",
         "gemini_configured": bool(os.environ.get("GEMINI_API_KEY") or cfg.get("gemini_api_key")),
+        "elevenlabs_configured": bool(os.environ.get("ELEVENLABS_API_KEY") or cfg.get("elevenlabs_api_key")),
+        "elevenlabs_voice_id": os.environ.get("ELEVENLABS_VOICE_ID") or DEFAULT_ELEVENLABS_VOICE_ID,
         "bungie_configured": bool(creds.get("api_key") and creds.get("client_id")),
     }
 
@@ -1354,8 +1423,8 @@ def verify_clan_passcode_endpoint(body: ClanPasscodeRequest):
 @app.post("/api/tts")
 async def tts_endpoint(req: TTSRequest):
     try:
-        wav_bytes = await run_in_threadpool(_synthesize_ghost_speech, req.text, req.voice or "", req.style or "")
-        return Response(content=wav_bytes, media_type="audio/wav")
+        audio_bytes, media_type = await run_in_threadpool(_synthesize_ghost_speech, req.text, req.voice or "", req.style or "")
+        return Response(content=audio_bytes, media_type=media_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:

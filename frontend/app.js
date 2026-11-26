@@ -38,7 +38,7 @@ const state = {
   shader: 'solar',       // 'stasis', 'void', 'arc', 'solar', 'strand', 'prismatic'
   soundEnabled: true,
   autoSpeak: false,
-  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice')) || 'Charon',
+  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice')) || 'elevenlabs',
   voiceRadioFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_radio_fx')) !== 'false',
   handsFreeVoice: false,
   responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
@@ -2227,15 +2227,16 @@ function initSpeechRecognition() {
   const btnHandsFree = document.getElementById('btnCommsHandsFree');
   const btnStopVoice = document.getElementById('btnCommsStopVoice');
 
-  if (personaSel) {
-    personaSel.value = state.neuralVoice || 'Charon';
-    personaSel.addEventListener('change', () => {
-      state.neuralVoice = personaSel.value || 'Charon';
-      try { localStorage.setItem('reborn_neural_voice', state.neuralVoice); } catch (_) {}
-      sfx.playChirp();
-      showToast(`🤖 Ghost Voice switched to ${state.neuralVoice}`, 'info');
-    });
-  }
+    if (personaSel) {
+      personaSel.value = state.neuralVoice || 'elevenlabs';
+      personaSel.addEventListener('change', () => {
+        state.neuralVoice = personaSel.value || 'elevenlabs';
+        try { localStorage.setItem('reborn_neural_voice', state.neuralVoice); } catch (_) {}
+        sfx.playChirp();
+        const label = state.neuralVoice === 'elevenlabs' ? 'R.E.B.O.R.N. (ElevenLabs)' : state.neuralVoice;
+        showToast(`🤖 Ghost Voice switched to ${label}`, 'info');
+      });
+    }
 
   if (styleSel) {
     styleSel.value = state.responseStyle || 'balanced';
