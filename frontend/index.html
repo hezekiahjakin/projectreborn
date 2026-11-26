@@ -14,10 +14,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v70">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v70">
-  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v70">
-  <link rel="modulepreload" href="app.js?v=20261126_v70">
+  <link rel="stylesheet" href="styles.css?v=20261126_v71">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v71">
+  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v71">
+  <link rel="modulepreload" href="app.js?v=20261126_v71">
 </head>
 <body class="theme-vanguard">
 
@@ -262,22 +262,15 @@
             </div>
           </div>
 
-          <!-- Voice Persona, Hands-Free Mode & AI Response Style Bar -->
+          <!-- ElevenLabs Primary Voice Status, Hands-Free Mode & AI Response Style Bar -->
           <div class="comms-voice-bar" id="commsVoiceBar">
-            <select id="commsVoicePersona" class="comms-voice-select" aria-label="Select R.E.B.O.R.N. Neural Voice Persona" title="Select Neural Ghost Voice">
-              <option value="elevenlabs">🎙️ Voice: R.E.B.O.R.N. (ElevenLabs)</option>
-              <option value="Charon">🤖 Voice: Charon (Ghost)</option>
-              <option value="Fenrir">⚔️ Voice: Fenrir (Commander)</option>
-              <option value="Orus">💠 Voice: Orus (Warmind)</option>
-              <option value="Puck">⚡ Voice: Puck (Recon)</option>
-              <option value="Kore">✦ Voice: Kore (Construct)</option>
-            </select>
+            <span class="comms-voice-status-badge" id="commsVoiceStatusBadge" title="Active Primary Voice: ElevenLabs (PFWTXPnrVxMf7COApT6N)">● ElevenLabs Ghost</span>
+            <button type="button" class="btn-comms-toggle" id="btnCommsTestVoice" title="Play a short voice check using your ElevenLabs Ghost voice">▶ Test Voice</button>
             <select id="commsResponseStyle" class="comms-voice-select" aria-label="Select AI Response Style" title="AI Response Detail Level">
               <option value="balanced">🛠️ Balanced</option>
               <option value="concise">⚡ Concise Callouts</option>
               <option value="deep">📖 Deep Telemetry</option>
             </select>
-            <button type="button" class="btn-comms-toggle" id="btnCommsRadioFx" title="Toggle futuristic Ghost radio vocal filter">📻 Radio FX</button>
             <button type="button" class="btn-comms-toggle" id="btnCommsAutoSpeak" title="Automatically speak every R.E.B.O.R.N. reply">🔊 Auto-Speak</button>
             <button type="button" class="btn-comms-toggle" id="btnCommsHandsFree" title="Hands-Free Voice Mode: speak -> auto-send -> auto-reply -> auto-listen">🎙️ Hands-Free</button>
           </div>
@@ -552,16 +545,11 @@
           </div>
         </div>
 
-        <!-- Voice & Robotic Ghost Speech Settings -->
+        <!-- Voice & Ghost Speech Settings -->
         <div class="settings-card">
-          <h3 class="card-title">✦ AUDIO &amp; ROBOTIC GHOST VOICE ENGINE</h3>
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label>SPEECH SYNTHESIS VOICE (MALE ROBOTIC GHOST PREFERRED)</label>
-              <select id="voiceSelect" class="input-tactical select-tactical">
-                <option value="auto">Auto-detect Male Robotic Ghost Voice</option>
-              </select>
-            </div>
+          <h3 class="card-title">✦ AUDIO &amp; ELEVENLABS GHOST VOICE ENGINE</h3>
+          <p class="card-desc">Primary Ghost voice is locked to your custom ElevenLabs Voice (<code>PFWTXPnrVxMf7COApT6N</code>) at pure studio quality, with automatic fallback only if ElevenLabs is unreachable.</p>
+          <div class="form-row" style="align-items:center;">
             <div class="form-group">
               <label>AUTO-SPEAK RESPONSES</label>
               <label class="toggle-switch">
@@ -569,15 +557,8 @@
                 <span class="toggle-slider"></span>
               </label>
             </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group flex-1">
-              <label>VOICE RATE: <span id="rateVal">1.0</span>x</label>
-              <input type="range" id="voiceRate" min="0.7" max="1.35" step="0.05" value="1.02" class="range-slider">
-            </div>
-            <div class="form-group flex-1">
-              <label>VOICE PITCH: <span id="pitchVal">1.05</span></label>
-              <input type="range" id="voicePitch" min="0.55" max="1.25" step="0.05" value="0.84" class="range-slider">
+            <div class="form-group">
+              <button type="button" class="btn-tactical btn-secondary" id="btnSettingsTestVoice">▶ Test ElevenLabs Voice</button>
             </div>
           </div>
         </div>
@@ -1985,7 +1966,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v70"></script>
-  <script type="module" src="app.js?v=20261126_v70"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v71"></script>
+  <script type="module" src="app.js?v=20261126_v71"></script>
 </body>
 </html>

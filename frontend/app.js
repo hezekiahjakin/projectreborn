@@ -38,11 +38,10 @@ const state = {
   shader: 'solar',       // 'stasis', 'void', 'arc', 'solar', 'strand', 'prismatic'
   soundEnabled: true,
   autoSpeak: false,
-  neuralVoice: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_neural_voice_v2')) || 'elevenlabs',
-  voiceRadioFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_radio_fx_v2')) === 'true',
   handsFreeVoice: false,
   responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
   isListening: false,
+  activeTtsProvider: 'elevenlabs',
   voiceRate: 1.02,
   voicePitch: 0.84,
   selectedVoice: null,
@@ -317,107 +316,79 @@ if (typeof document !== 'undefined') {
 }
 
 /* ==========================================================================
-   ROBOTIC MALE GHOST SPEECH SYNTHESIS ENGINE (R.E.B.O.R.N.)
+   R.E.B.O.R.N. UNIFIED ELEVENLABS AUDIO & SPEECH ENGINE (PFWTXPnrVxMf7COApT6N)
+   Primary: ElevenLabs Studio Neural Voice (PFWTXPnrVxMf7COApT6N)
+   Fallback ONLY: Server Gemini Charon -> Offline Browser SpeechSynthesis
    ========================================================================== */
-class RoboticGhostVoiceEngine {
+class RebornAudioSpeechEngine {
   constructor() {
+    this._ctx = null;
+    this._analyser = null;
+    this._analyserData = null;
+    this._activeSource = null;
+    this._activeHtmlAudio = null;
+    this._abortCtrl = null;
+    this._genId = 0;
     this.voices = [];
-    this.initVoices();
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = () => this.initVoices();
+
+    if (typeof window !== 'undefined') {
+      const unlockOnce = () => this.unlock();
+      window.addEventListener('pointerdown', unlockOnce, { passive: true });
+      window.addEventListener('touchstart', unlockOnce, { passive: true });
+      window.addEventListener('keydown', unlockOnce, { passive: true });
+      if ('speechSynthesis' in window) {
+        this.voices = window.speechSynthesis.getVoices();
+        window.speechSynthesis.onvoiceschanged = () => {
+          this.voices = window.speechSynthesis.getVoices();
+        };
+      }
     }
   }
 
-  isPreferredMaleVoice(v) {
-    const n = (v.name || '').toLowerCase();
-    const l = (v.lang || '').toLowerCase();
-    if (!l.startsWith('en')) return false;
-    const maleHints = [
-      'guy', 'christopher', 'ryan', 'andrew', 'eric', 'david', 'mark',
-      'george', 'daniel', 'arthur', 'alex', 'aaron', 'fred', 'james',
-      'thomas', 'oliver', 'male', 'brian', 'roger', 'steffan'
-    ];
-    return maleHints.some(h => n.includes(h));
+  unlock() {
+    if (typeof window === 'undefined') return null;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!this._ctx || this._ctx.state === 'closed') {
+      try {
+        this._ctx = new AudioCtx();
+        this._analyser = this._ctx.createAnalyser();
+        this._analyser.fftSize = 256;
+        this._analyserData = new Uint8Array(this._analyser.frequencyBinCount);
+        this._analyser.connect(this._ctx.destination);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (this._ctx.state === 'suspended') {
+      this._ctx.resume().catch(() => {});
+    }
+    return this._ctx;
   }
 
   playCommsTone(isStart = true) {
     if (!state.soundEnabled || typeof window === 'undefined') return;
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
+      const ctx = this.unlock();
+      if (!ctx) return;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
       const now = ctx.currentTime;
       if (isStart) {
         osc.frequency.setValueAtTime(520, now);
-        osc.frequency.exponentialRampToValueAtTime(880, now + 0.06);
+        osc.frequency.exponentialRampToValueAtTime(860, now + 0.055);
       } else {
-        osc.frequency.setValueAtTime(740, now);
-        osc.frequency.exponentialRampToValueAtTime(420, now + 0.055);
+        osc.frequency.setValueAtTime(720, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.05);
       }
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
+      gain.gain.setValueAtTime(0.035, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.08);
-      setTimeout(() => ctx.close().catch(() => {}), 150);
+      osc.stop(now + 0.075);
     } catch (_) {}
-  }
-
-  initVoices() {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    this.voices = window.speechSynthesis.getVoices();
-    const select = document.getElementById('voiceSelect');
-    if (!select) return;
-
-    select.innerHTML = '<option value="auto">Auto-detect Male Robotic Ghost Voice</option>';
-
-    const maleVoices = [];
-    const otherVoices = [];
-
-    this.voices.forEach((v, idx) => {
-      const langLower = (v.lang || '').toLowerCase();
-      if (!langLower.startsWith('en')) return;
-      if (this.isPreferredMaleVoice(v)) {
-        maleVoices.push({ v, idx });
-      } else {
-        otherVoices.push({ v, idx });
-      }
-    });
-
-    maleVoices.forEach(({ v, idx }) => {
-      const opt = document.createElement('option');
-      opt.value = idx;
-      opt.textContent = `🤖 ${v.name} (${v.lang})`;
-      select.appendChild(opt);
-    });
-
-    otherVoices.forEach(({ v, idx }) => {
-      const opt = document.createElement('option');
-      opt.value = idx;
-      opt.textContent = `${v.name} (${v.lang})`;
-      select.appendChild(opt);
-    });
-  }
-
-  pickBestMaleVoice() {
-    const priorityNames = [
-      'microsoft guy', 'microsoft christopher', 'microsoft ryan',
-      'microsoft andrew', 'microsoft eric', 'google uk english male',
-      'microsoft david', 'microsoft mark', 'daniel', 'alex', 'arthur', 'male'
-    ];
-    for (const hint of priorityNames) {
-      const match = this.voices.find(
-        v => (v.lang || '').toLowerCase().startsWith('en') && (v.name || '').toLowerCase().includes(hint)
-      );
-      if (match) return match;
-    }
-    return this.voices.find(v => this.isPreferredMaleVoice(v))
-      || this.voices.find(v => (v.lang || '').toLowerCase().startsWith('en'))
-      || null;
   }
 
   getAudioLevel() {
@@ -435,208 +406,222 @@ class RoboticGhostVoiceEngine {
     }
   }
 
-  _setSpeakingUi(active) {
+  _setSpeakingUi(active, provider = '') {
     state.isSpeaking = active;
     const stopBtn = document.getElementById('btnCommsStopVoice');
     if (stopBtn) stopBtn.classList.toggle('hidden', !active);
+
+    if (provider) {
+      state.activeTtsProvider = provider;
+      const badge = document.getElementById('commsVoiceStatusBadge');
+      if (badge) {
+        const isEl = provider === 'elevenlabs';
+        badge.classList.toggle('is-fallback', !isEl);
+        badge.textContent = isEl ? '● ElevenLabs Ghost' : '● Fallback Voice';
+        badge.title = isEl
+          ? 'Active Primary Voice: ElevenLabs (PFWTXPnrVxMf7COApT6N)'
+          : `Using fallback voice (${provider})`;
+      }
+    }
   }
 
-  async playNeuralGhostAudio(arrayBuffer, mimeType = 'audio/mpeg') {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
+  _cleanSpeechText(raw) {
+    return String(raw || '')
+      .replace(/```[\s\S]*?```/g, ' ')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#+\s*/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/---+/g, ' ')
+      .replace(/[•✦❖⚡🎯🛡️⚔️📬🧹🔒🤖🎙️🔊📻🛠️]/g, ' ')
+      .replace(/R\.E\.B\.O\.R\.N\./g, 'Reborn')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  _splitSpeechChunks(text) {
+    if (text.length <= 280) return [text];
+    const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
+    const chunks = [];
+    let cur = '';
+    const firstLimit = 220;
+    const nextLimit = 700;
+    for (const rawS of sentences) {
+      const s = rawS.trim();
+      if (!s) continue;
+      const limit = chunks.length === 0 ? firstLimit : nextLimit;
+      if (cur && (cur.length + 1 + s.length) > limit) {
+        chunks.push(cur);
+        cur = s;
+      } else {
+        cur = cur ? `${cur} ${s}` : s;
+      }
+    }
+    if (cur) chunks.push(cur);
+    return chunks.slice(0, 4);
+  }
+
+  async _playDecodedChunk(arrayBuffer, mimeType, provider, genId) {
+    if (genId !== this._genId) return;
+    const ctx = this.unlock();
+    if (ctx) {
       try {
-        if (this._activeAudioCtx) {
-          try { this._activeAudioCtx.close(); } catch (_) {}
-        }
-        const ctx = new AudioCtx();
-        this._activeAudioCtx = ctx;
         if (ctx.state === 'suspended') {
           await ctx.resume().catch(() => {});
         }
-        const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
-
-        const src = ctx.createBufferSource();
-        src.buffer = audioBuffer;
-        const rate = state.voiceRadioFx ? Math.max(0.85, Math.min(1.25, state.voiceRate || 1.0)) : 1.0;
-        src.playbackRate.value = rate;
-
-        const comp = ctx.createDynamicsCompressor();
-        comp.threshold.value = -16;
-        comp.ratio.value = 3;
-
-        const analyser = ctx.createAnalyser();
-        analyser.fftSize = 256;
-        this._analyser = analyser;
-        this._analyserData = new Uint8Array(analyser.frequencyBinCount);
-
-        if (state.voiceRadioFx === true) {
-          const hp = ctx.createBiquadFilter();
-          hp.type = 'highpass';
-          hp.frequency.value = 250;
-
-          const lp = ctx.createBiquadFilter();
-          lp.type = 'lowpass';
-          lp.frequency.value = 4100;
-
-          const delay = ctx.createDelay(0.1);
-          delay.delayTime.value = 0.015;
-          const wetGain = ctx.createGain();
-          wetGain.gain.value = 0.14;
-          const dryGain = ctx.createGain();
-          dryGain.gain.value = 0.94;
-
-          src.connect(hp);
-          hp.connect(lp);
-          lp.connect(dryGain);
-          lp.connect(delay);
-          delay.connect(wetGain);
-          dryGain.connect(comp);
-          wetGain.connect(comp);
-        } else {
-          src.connect(comp);
+        if (ctx.state === 'running') {
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+          if (genId !== this._genId) return;
+          const src = ctx.createBufferSource();
+          src.buffer = audioBuffer;
+          src.playbackRate.value = 1.0; // Pure untouched ElevenLabs studio voice!
+          src.connect(this._analyser);
+          this._activeSource = src;
+          return await new Promise((resolve) => {
+            src.onended = () => {
+              if (this._activeSource === src) this._activeSource = null;
+              resolve();
+            };
+            src.start(0);
+          });
         }
-
-        comp.connect(analyser);
-        analyser.connect(ctx.destination);
-
-        this._setSpeakingUi(true);
-        this.playCommsTone(true);
-        const voiceTag = state.neuralVoice === 'elevenlabs' ? 'ELEVENLABS GHOST' : `${(state.neuralVoice || 'CHARON').toUpperCase()} NEURAL`;
-        updateConstructMood(`TRANSMITTING // ${voiceTag}`);
-
-        return await new Promise((resolve) => {
-          src.onended = () => {
-            this._setSpeakingUi(false);
-            this._analyser = null;
-            this._analyserData = null;
-            this.playCommsTone(false);
-            updateConstructMood('STATUS: STANDBY // SCANNING');
-            ctx.close().catch(() => {});
-            if (this._activeAudioCtx === ctx) this._activeAudioCtx = null;
-            if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
-              setTimeout(() => window.__startHandsFreeMic(), 450);
-            }
-            resolve();
-          };
-          src.start(0);
-        });
-      } catch (webAudioErr) {
-        console.warn('[Voice] WebAudio decode/play fallback to HTMLAudioElement:', webAudioErr);
+      } catch (err) {
+        console.warn('[RebornSpeech] WebAudio chunk fallback to HTMLAudioElement:', err);
       }
     }
 
-    // Direct HTMLAudioElement fallback (preserves ElevenLabs / Gemini neural voice on strict mobile browsers!)
+    // HTMLAudioElement playback of exact ElevenLabs MP3/WAV (never falls back to OS SpeechSynthesis!)
+    if (genId !== this._genId) return;
     const blob = new Blob([arrayBuffer], { type: mimeType || 'audio/mpeg' });
     const blobUrl = URL.createObjectURL(blob);
     const audioEl = new Audio(blobUrl);
     this._activeHtmlAudio = audioEl;
-    this._setSpeakingUi(true);
-    this.playCommsTone(true);
-    updateConstructMood('TRANSMITTING // ELEVENLABS GHOST');
-    return new Promise((resolve, reject) => {
-      audioEl.onended = () => {
+    return new Promise((resolve) => {
+      const finish = () => {
         URL.revokeObjectURL(blobUrl);
-        this._activeHtmlAudio = null;
+        if (this._activeHtmlAudio === audioEl) this._activeHtmlAudio = null;
+        resolve();
+      };
+      audioEl.onended = finish;
+      audioEl.onerror = finish;
+      audioEl.play().catch(finish);
+    });
+  }
+
+  _speakOfflineFallback(cleanText, genId) {
+    if (genId !== this._genId) return;
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const utter = new SpeechSynthesisUtterance(cleanText);
+    utter.rate = 1.0;
+    utter.pitch = 0.9;
+    const maleHints = ['guy', 'christopher', 'ryan', 'andrew', 'david', 'mark', 'daniel', 'male'];
+    const best = this.voices.find(
+      v => (v.lang || '').toLowerCase().startsWith('en') && maleHints.some(h => (v.name || '').toLowerCase().includes(h))
+    ) || this.voices.find(v => (v.lang || '').toLowerCase().startsWith('en'));
+    if (best) utter.voice = best;
+    utter.onstart = () => {
+      this._setSpeakingUi(true, 'local-fallback');
+      this.playCommsTone(true);
+      updateConstructMood('TRANSMITTING // OFFLINE FALLBACK RELAY');
+    };
+    utter.onend = () => {
+      this._setSpeakingUi(false);
+      this.playCommsTone(false);
+      updateConstructMood('STATUS: STANDBY // SCANNING');
+      if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
+        setTimeout(() => window.__startHandsFreeMic(), 450);
+      }
+    };
+    utter.onerror = () => {
+      this._setSpeakingUi(false);
+      updateConstructMood('STATUS: STANDBY // SCANNING');
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  async speak(text) {
+    this.stop();
+    // Synchronously unlock singleton AudioContext inside current call stack!
+    this.unlock();
+
+    const cleanText = this._cleanSpeechText(text);
+    if (!cleanText) return;
+
+    const genId = ++this._genId;
+    const abortCtrl = new AbortController();
+    this._abortCtrl = abortCtrl;
+    const chunks = this._splitSpeechChunks(cleanText);
+
+    const fetchChunk = async (chunkText) => {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: chunkText, voice: 'elevenlabs' }),
+        signal: abortCtrl.signal,
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(`TTS HTTP ${res.status}: ${detail.slice(0, 120)}`);
+      }
+      const mime = res.headers.get('content-type') || 'audio/mpeg';
+      const provider = res.headers.get('x-tts-provider') || (mime.includes('mpeg') ? 'elevenlabs' : 'gemini-fallback');
+      const buf = await res.arrayBuffer();
+      return { buf, mime, provider };
+    };
+
+    try {
+      // Pipeline prefetch: start fetching chunk[i+1] while playing chunk[i]
+      let nextPromise = fetchChunk(chunks[0]);
+      for (let i = 0; i < chunks.length; i++) {
+        const currentData = await nextPromise;
+        if (genId !== this._genId) return;
+        if (i + 1 < chunks.length) {
+          nextPromise = fetchChunk(chunks[i + 1]);
+        }
+        if (i === 0) {
+          this._setSpeakingUi(true, currentData.provider);
+          this.playCommsTone(true);
+          updateConstructMood(
+            currentData.provider === 'elevenlabs'
+              ? 'TRANSMITTING // ELEVENLABS GHOST'
+              : 'TRANSMITTING // FALLBACK GHOST RELAY'
+          );
+        }
+        await this._playDecodedChunk(currentData.buf, currentData.mime, currentData.provider, genId);
+        if (genId !== this._genId) return;
+      }
+
+      if (genId === this._genId) {
         this._setSpeakingUi(false);
         this.playCommsTone(false);
         updateConstructMood('STATUS: STANDBY // SCANNING');
         if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
           setTimeout(() => window.__startHandsFreeMic(), 450);
         }
-        resolve();
-      };
-      audioEl.onerror = (e) => {
-        URL.revokeObjectURL(blobUrl);
-        this._activeHtmlAudio = null;
-        this._setSpeakingUi(false);
-        reject(e);
-      };
-      audioEl.play().catch(reject);
-    });
-  }
-
-  speak(text) {
-    this.stop();
-
-    const cleanText = String(text || '')
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/#+\s/g, '')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/---/g, '')
-      .replace(/•/g, '')
-      .replace(/R\.E\.B\.O\.R\.N\./g, 'Reborn')
-      .trim();
-
-    if (!cleanText) return;
-
-    // 1. Try studio-grade ElevenLabs / Gemini Neural Ghost TTS first
-    let respMime = 'audio/mpeg';
-    fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: cleanText,
-        voice: state.neuralVoice || 'elevenlabs',
-        style: state.voiceRadioFx ? 'radio' : 'clean',
-      }),
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Neural TTS unavailable');
-        respMime = res.headers.get('content-type') || 'audio/mpeg';
-        return res.arrayBuffer();
-      })
-      .then((buf) => this.playNeuralGhostAudio(buf, respMime))
-      .catch(() => {
-        // 2. Seamless fallback to browser SpeechSynthesis male robotic Ghost cadence
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        const utter = new SpeechSynthesisUtterance(cleanText);
-        utter.rate = state.voiceRate;
-        utter.pitch = state.voicePitch;
-
-        const select = document.getElementById('voiceSelect');
-        const selectedIdx = select ? select.value : 'auto';
-
-        if (selectedIdx !== 'auto' && this.voices[selectedIdx]) {
-          utter.voice = this.voices[selectedIdx];
-        } else {
-          const maleVoice = this.pickBestMaleVoice();
-          if (maleVoice) utter.voice = maleVoice;
-        }
-
-        utter.onstart = () => {
-          this._setSpeakingUi(true);
-          this.playCommsTone(true);
-          updateConstructMood('TRANSMITTING AUDIO // ROBOTIC GHOST RELAY');
-        };
-        utter.onend = () => {
-          this._setSpeakingUi(false);
-          this.playCommsTone(false);
-          updateConstructMood('STATUS: STANDBY // SCANNING');
-          if (state.handsFreeVoice && typeof window.__startHandsFreeMic === 'function') {
-            setTimeout(() => window.__startHandsFreeMic(), 450);
-          }
-        };
-        utter.onerror = () => {
-          this._setSpeakingUi(false);
-          updateConstructMood('STATUS: STANDBY // SCANNING');
-        };
-        window.speechSynthesis.speak(utter);
-      });
+      }
+    } catch (err) {
+      if (abortCtrl.signal.aborted || genId !== this._genId) return;
+      console.warn('[RebornSpeech] Primary/Server TTS network error, using offline fallback:', err);
+      this._speakOfflineFallback(cleanText, genId);
+    }
   }
 
   stop() {
+    this._genId++;
+    if (this._abortCtrl) {
+      try { this._abortCtrl.abort(); } catch (_) {}
+      this._abortCtrl = null;
+    }
+    if (this._activeSource) {
+      try { this._activeSource.stop(); this._activeSource.disconnect(); } catch (_) {}
+      this._activeSource = null;
+    }
     if (this._activeHtmlAudio) {
       try { this._activeHtmlAudio.pause(); this._activeHtmlAudio.currentTime = 0; } catch (_) {}
       this._activeHtmlAudio = null;
     }
-    if (this._activeAudioCtx) {
-      try { this._activeAudioCtx.close(); } catch (_) {}
-      this._activeAudioCtx = null;
-    }
-    this._analyser = null;
-    this._analyserData = null;
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -644,7 +629,7 @@ class RoboticGhostVoiceEngine {
   }
 }
 
-const voice = new RoboticGhostVoiceEngine();
+const voice = new RebornAudioSpeechEngine();
 
 /* ==========================================================================
    INTERACTIVE CANVAS 3D GHOST CONSTRUCT (V1 DEFAULT DESIGN)
@@ -2118,7 +2103,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v69');
+    const mod = await import('./ghost-3d.js?v=20261126_v71');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
@@ -2344,24 +2329,19 @@ function initSpeechRecognition() {
   const micBtn = document.getElementById('btnVoiceInput');
   const chatInput = document.getElementById('chatInput');
 
-  // Wire AI Comms Voice Bar Controls (works in all browsers regardless of SpeechRecognition support)
-  const personaSel = document.getElementById('commsVoicePersona');
+  // Wire AI Comms Voice Bar Controls (ElevenLabs Locked Primary Voice)
   const styleSel = document.getElementById('commsResponseStyle');
-  const btnRadioFx = document.getElementById('btnCommsRadioFx');
+  const btnTestVoice = document.getElementById('btnCommsTestVoice');
   const btnAutoSpeak = document.getElementById('btnCommsAutoSpeak');
   const btnHandsFree = document.getElementById('btnCommsHandsFree');
   const btnStopVoice = document.getElementById('btnCommsStopVoice');
 
-    if (personaSel) {
-      personaSel.value = state.neuralVoice || 'elevenlabs';
-      personaSel.addEventListener('change', () => {
-        state.neuralVoice = personaSel.value || 'elevenlabs';
-        try { localStorage.setItem('reborn_neural_voice_v2', state.neuralVoice); } catch (_) {}
-        sfx.playChirp();
-        const label = state.neuralVoice === 'elevenlabs' ? 'R.E.B.O.R.N. (ElevenLabs)' : state.neuralVoice;
-        showToast(`🤖 Ghost Voice switched to ${label}`, 'info');
-      });
-    }
+  if (btnTestVoice) {
+    btnTestVoice.addEventListener('click', () => {
+      sfx.playChirp();
+      voice.speak('Eyes up, Guardian. Reborn tactical uplink is locked in and ready.');
+    });
+  }
 
   if (styleSel) {
     styleSel.value = state.responseStyle || 'balanced';
@@ -2369,17 +2349,6 @@ function initSpeechRecognition() {
       state.responseStyle = styleSel.value || 'balanced';
       try { localStorage.setItem('reborn_response_style', state.responseStyle); } catch (_) {}
       sfx.playChirp();
-    });
-  }
-
-  if (btnRadioFx) {
-    btnRadioFx.classList.toggle('active', state.voiceRadioFx === true);
-    btnRadioFx.addEventListener('click', () => {
-      state.voiceRadioFx = !state.voiceRadioFx;
-      try { localStorage.setItem('reborn_radio_fx_v2', String(state.voiceRadioFx)); } catch (_) {}
-      btnRadioFx.classList.toggle('active', state.voiceRadioFx);
-      sfx.playChirp();
-      showToast(state.voiceRadioFx ? '📻 Ghost Radio FX Enabled' : '🎧 Clean Studio ElevenLabs Voice Enabled', 'info');
     });
   }
 
@@ -2391,6 +2360,14 @@ function initSpeechRecognition() {
       if (txt) voice.speak(txt);
     });
   });
+
+  const btnSettingsTestVoice = document.getElementById('btnSettingsTestVoice');
+  if (btnSettingsTestVoice) {
+    btnSettingsTestVoice.addEventListener('click', () => {
+      sfx.playChirp();
+      voice.speak('Eyes up, Guardian. ElevenLabs Ghost telemetry confirmed.');
+    });
+  }
 
   if (btnAutoSpeak) {
     btnAutoSpeak.classList.toggle('active', Boolean(state.autoSpeak));
@@ -9332,29 +9309,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (b && modalView) b.addEventListener('click', () => modalView.close());
   });
 
-  // Speech Settings Sliders & Auto-speak Toggle
+  // Auto-speak Toggle in Settings (synced with Ask Ghost bar)
   const checkAutoSpeak = document.getElementById('checkAutoSpeak');
   if (checkAutoSpeak) {
     checkAutoSpeak.addEventListener('change', (e) => {
       state.autoSpeak = e.target.checked;
-    });
-  }
-
-  const voiceRate = document.getElementById('voiceRate');
-  const rateVal = document.getElementById('rateVal');
-  if (voiceRate && rateVal) {
-    voiceRate.addEventListener('input', (e) => {
-      state.voiceRate = parseFloat(e.target.value);
-      rateVal.textContent = state.voiceRate.toFixed(2);
-    });
-  }
-
-  const voicePitch = document.getElementById('voicePitch');
-  const pitchVal = document.getElementById('pitchVal');
-  if (voicePitch && pitchVal) {
-    voicePitch.addEventListener('input', (e) => {
-      state.voicePitch = parseFloat(e.target.value);
-      pitchVal.textContent = state.voicePitch.toFixed(2);
+      document.getElementById('btnCommsAutoSpeak')?.classList.toggle('active', state.autoSpeak);
     });
   }
 

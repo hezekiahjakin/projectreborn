@@ -1415,6 +1415,28 @@ dialog.hud-modal .modal-footer {
   background: rgba(9, 14, 26, 0.72);
 }
 
+.comms-voice-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: #A7F3D0;
+  font-family: var(--r-font-tactical);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.comms-voice-status-badge.is-fallback {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #FDE68A;
+}
+
 .comms-voice-select {
   min-height: 34px !important;
   font-size: 12px !important;
