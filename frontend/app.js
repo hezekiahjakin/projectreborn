@@ -935,100 +935,425 @@ function buildChatInventoryContext() {
   };
 }
 
+async function executePullPostmasterForChar(targetCharId = '', triggerBtn = null) {
+  if (!state.bungieSession?.access_token || !state.bungieData?.player) {
+    showToast('Sign in with Bungie.net first to pull Postmaster items.', 'info');
+    return 0;
+  }
+  const chars = state.bungieData.characters || [];
+  const targetChars = targetCharId ? chars.filter(c => c.characterId === targetCharId) : chars;
+  const pullQueue = [];
+  targetChars.forEach(ch => {
+    (ch.postmaster || []).forEach(it => {
+      if (it.itemInstanceId && it.itemHash && !/engram/i.test(it.name || '')) {
+        pullQueue.push({ ch, item: it });
+      }
+    });
+  });
+
+  if (pullQueue.length === 0) {
+    showToast('No pullable gear found in Postmaster.', 'info');
+    return 0;
+  }
+
+  const prevLabel = triggerBtn ? triggerBtn.textContent : '';
+  if (triggerBtn) {
+    triggerBtn.disabled = true;
+    triggerBtn.textContent = `Pulling 0/${pullQueue.length}…`;
+  }
+
+  let pulled = 0;
+  for (let i = 0; i < pullQueue.length; i++) {
+    const { ch, item } = pullQueue[i];
+    if (triggerBtn) triggerBtn.textContent = `Pulling ${i + 1}/${pullQueue.length}…`;
+    try {
+      const res = await fetch('/api/bungie/transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.bungieSession.access_token}`,
+          'X-Bungie-Refresh': state.bungieSession.refresh_token || '',
+        },
+        body: JSON.stringify({
+          membershipType: state.bungieData.player.membershipType,
+          itemInstanceId: item.itemInstanceId,
+          itemHash: Number(item.itemHash),
+          sourceLocation: 'postmaster',
+          sourceCharacterId: ch.characterId,
+          targetType: 'character',
+          targetCharacterId: ch.characterId,
+          isEquipped: false,
+        }),
+      });
+      const out = await res.json().catch(() => null);
+      if (out?.refreshed_session) saveBungieSession(out.refreshed_session);
+      if (res.ok) pulled++;
+    } catch (_) {}
+  }
+
+  if (triggerBtn) {
+    triggerBtn.disabled = false;
+    triggerBtn.textContent = prevLabel || '📬 Pull Postmaster';
+  }
+  if (pulled > 0) {
+    sfx.playReceive();
+    showToast(`✓ Pulled ${pulled} item(s) from Postmaster! Syncing…`, 'info');
+    fetchBungieInventory(true);
+  } else {
+    sfx.playAlert();
+    showToast('Could not pull Postmaster items (character pockets may be full).', 'info');
+  }
+  return pulled;
+}
+
+async function executeGhostCommandAction(action, btnEl) {
+  if (!action || !action.type) return;
+  sfx.playTransmit();
+
+  if (action.type === 'open_duplicates') {
+    if (typeof window.__openDuplicateAnalyzerModal === 'function') {
+      window.__openDuplicateAnalyzerModal();
+    } else {
+      showToast('Duplicate Analyzer is loading—try again in a moment.', 'info');
+    }
+    return;
+  }
+
+  if (action.type === 'scan_lock_godrolls') {
+    switchTab('tab-inventory');
+    setTimeout(() => document.getElementById('btnScanGodRolls')?.click(), 120);
+    return;
+  }
+
+  if (action.type === 'pull_postmaster') {
+    await executePullPostmasterForChar('', btnEl);
+    return;
+  }
+
+  if (action.type === 'transfer_equip') {
+    if (!state.bungieSession?.access_token || !state.bungieData?.player) {
+      showToast('Sign in with Bungie.net first to equip gear live!', 'info');
+      return;
+    }
+    const targetName = String(action.itemName || '').toLowerCase().trim();
+    const targetClass = String(action.targetClass || '').toLowerCase().trim();
+    const chars = state.bungieData.characters || [];
+    const targetChar =
+      chars.find(c => (c.className || '').toLowerCase() === targetClass) ||
+      getActiveCharacter() ||
+      chars[0];
+    if (!targetChar) {
+      showToast('No active character found.', 'info');
+      return;
+    }
+
+    let found = null;
+    let sourceLoc = 'vault';
+    let sourceCharId = '';
+    for (const ch of chars) {
+      for (const it of (ch.equipment || [])) {
+        if ((it.name || '').toLowerCase() === targetName) {
+          found = it; sourceLoc = 'equipped'; sourceCharId = ch.characterId; break;
+        }
+      }
+      if (found) break;
+      for (const it of (ch.inventory || [])) {
+        if ((it.name || '').toLowerCase() === targetName) {
+          found = it; sourceLoc = 'inventory'; sourceCharId = ch.characterId; break;
+        }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      const vItems = Array.isArray(state.bungieData.vault) ? state.bungieData.vault : (state.bungieData.vault?.items || []);
+      const vHit = vItems.find(it => (it.name || '').toLowerCase() === targetName);
+      if (vHit) {
+        found = vHit; sourceLoc = 'vault'; sourceCharId = '';
+      }
+    }
+
+    if (!found || !found.itemInstanceId) {
+      showToast(`Could not locate '${action.itemName}' in your current synced gear.`, 'info');
+      return;
+    }
+
+    const prevText = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = `Equipping ${found.name}…`;
+    try {
+      const res = await fetch('/api/bungie/transfer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.bungieSession.access_token}`,
+          'X-Bungie-Refresh': state.bungieSession.refresh_token || '',
+        },
+        body: JSON.stringify({
+          membershipType: state.bungieData.player.membershipType,
+          itemInstanceId: found.itemInstanceId,
+          itemHash: Number(found.itemHash),
+          sourceLocation: sourceLoc,
+          sourceCharacterId: sourceCharId,
+          targetType: 'equip',
+          targetCharacterId: targetChar.characterId,
+          isEquipped: sourceLoc === 'equipped',
+        }),
+      });
+      const out = await res.json().catch(() => null);
+      if (out?.refreshed_session) saveBungieSession(out.refreshed_session);
+      if (!res.ok) throw new Error(out?.detail || `HTTP ${res.status}`);
+      sfx.playReceive();
+      btnEl.textContent = `✓ Equipped ${found.name}`;
+      showToast(`✓ Equipped ${found.name} on ${targetChar.className}!`, 'info');
+      fetchBungieInventory(true);
+    } catch (err) {
+      sfx.playAlert();
+      btnEl.disabled = false;
+      btnEl.textContent = prevText;
+      showToast(`Equip failed: ${err.message}`, 'info');
+    }
+  }
+}
+
+function renderGhostActionBar(containerEl, actions) {
+  if (!containerEl || !Array.isArray(actions) || actions.length === 0) return;
+  containerEl.innerHTML = '';
+  const bar = document.createElement('div');
+  bar.className = 'ghost-action-bar';
+  actions.forEach(act => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn-ghost-action';
+    b.title = act.detail || act.label;
+    b.textContent = act.label;
+    b.addEventListener('click', () => executeGhostCommandAction(act, b));
+    bar.appendChild(b);
+  });
+  containerEl.appendChild(bar);
+}
+
 async function sendChatMessage(userText) {
   if (!userText || !userText.trim()) return;
   const text = userText.trim();
 
-  // Play transmit audio
   sfx.playTransmit();
-
-  // Add User Message to UI
   appendMessage('user', 'GUARDIAN', text);
 
-  // Set thinking state
   state.isThinking = true;
-  updateConstructMood('CALCULATING TELEMETRY // GEMINI CORE');
+  updateConstructMood('STREAMING TELEMETRY // GEMINI CORE');
   const thinkingEl = document.getElementById('thinkingIndicator');
   if (thinkingEl) thinkingEl.classList.remove('hidden');
 
   const messagesContainer = document.getElementById('messagesContainer');
   if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
+  const payload = {
+    message: text,
+    history: state.chatHistory.slice(-10),
+    inventory_context: buildChatInventoryContext(),
+  };
+
+  let streamedRow = null;
+  let streamedMarkdownEl = null;
+  let accumulatedText = '';
+  let finalMeta = {};
+  let finalSnippets = [];
+  let finalBuild = null;
+  let finalGhostActions = [];
+  let streamOk = false;
+
   try {
-    const res = await fetch('/api/chat', {
+    const streamRes = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: text,
-        history: state.chatHistory.slice(-10),
-        inventory_context: buildChatInventoryContext()
-      })
+      body: JSON.stringify(payload),
     });
 
-    const rawText = await res.text().catch(() => '');
-    let data = null;
-    try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch (_) {
-      data = null;
+    if (streamRes.ok && streamRes.body) {
+      const reader = streamRes.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let renderScheduled = false;
+
+      const ensureStreamBubble = () => {
+        if (streamedRow) return;
+        if (thinkingEl) thinkingEl.classList.add('hidden');
+        streamedRow = appendMessage('reborn', 'R.E.B.O.R.N.', '…', [], null, { streaming: true, userPrompt: text });
+        streamedMarkdownEl = streamedRow?.querySelector('.msg-md-body') || null;
+      };
+
+      const scheduleRender = () => {
+        if (renderScheduled || !streamedMarkdownEl) return;
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+          renderScheduled = false;
+          if (streamedMarkdownEl) {
+            streamedMarkdownEl.innerHTML = renderMarkdown(accumulatedText);
+            if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        });
+      };
+
+      const processSseEvent = (rawEvent) => {
+        const lines = rawEvent.split(/\r?\n/);
+        let evName = 'message';
+        let dataLines = [];
+        for (const l of lines) {
+          if (l.startsWith('event:')) evName = l.slice(6).trim();
+          else if (l.startsWith('data:')) dataLines.push(l.slice(5).trim());
+        }
+        if (dataLines.length === 0) return;
+        let obj = null;
+        try { obj = JSON.parse(dataLines.join('\n')); } catch (_) { return; }
+
+        if (evName === 'meta') {
+          finalSnippets = obj.snippets_used || [];
+          finalMeta = {
+            effectiveClass: obj.effective_class,
+            effectiveSubclass: obj.effective_subclass,
+            userPrompt: text,
+          };
+          if (obj.effective_subclass) {
+            const subLower = String(obj.effective_subclass).toLowerCase();
+            if (['arc', 'solar', 'void', 'strand', 'stasis', 'prismatic'].includes(subLower)) {
+              state.shader = subLower;
+              state.subclass = subLower;
+              updateConstructMood(`SUBCLASS LINKED // ${obj.effective_subclass.toUpperCase()}`);
+            }
+          }
+        } else if (evName === 'chunk' && obj.text) {
+          ensureStreamBubble();
+          accumulatedText += obj.text;
+          scheduleRender();
+        } else if (evName === 'done') {
+          streamOk = true;
+          accumulatedText = obj.reply || accumulatedText;
+          finalSnippets = obj.snippets_used || finalSnippets;
+          finalBuild = obj.recommended_build || null;
+          finalGhostActions = obj.ghost_actions || [];
+          finalMeta = {
+            effectiveClass: obj.effective_class || finalMeta.effectiveClass,
+            effectiveSubclass: obj.effective_subclass || finalMeta.effectiveSubclass,
+            userPrompt: text,
+          };
+        }
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split(/\r?\n\r?\n/);
+        buf = parts.pop() || '';
+        for (const p of parts) {
+          if (p.trim()) processSseEvent(p);
+        }
+      }
+      if (buf.trim()) processSseEvent(buf);
     }
 
-    if (!res.ok || !data) {
-      const errorMsg = data?.reply || data?.detail || (res.status >= 500 
-        ? "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission." 
-        : `Vanguard uplink responded with status ${res.status}`);
-      throw new Error(errorMsg);
+    if (!streamOk && !accumulatedText) {
+      // Fallback to standard JSON /api/chat
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const rawText = await res.text().catch(() => '');
+      let data = null;
+      try { data = rawText ? JSON.parse(rawText) : null; } catch (_) {}
+      if (!res.ok || !data) {
+        throw new Error(data?.reply || data?.detail || `Vanguard uplink responded with status ${res.status}`);
+      }
+      accumulatedText = data.reply || "Could not get a clean signal right now, Guardian.";
+      finalSnippets = data.snippets_used || [];
+      finalBuild = data.recommended_build || null;
+      finalGhostActions = data.ghost_actions || [];
+      finalMeta = {
+        effectiveClass: data.effective_class,
+        effectiveSubclass: data.effective_subclass,
+        userPrompt: text,
+      };
     }
+
     state.isThinking = false;
     if (thinkingEl) thinkingEl.classList.add('hidden');
-
-    const reply = data.reply || "Could not get a clean signal right now, Guardian. Let's try again in a moment.";
-    
-    // Play receive audio
     sfx.playReceive();
 
-    // Dynamically update Ghost shader & subclass if conversation shifted
-    if (data.effective_subclass) {
-      const subLower = String(data.effective_subclass).toLowerCase();
-      if (['arc', 'solar', 'void', 'strand', 'stasis', 'prismatic'].includes(subLower)) {
-        state.shader = subLower;
-        state.subclass = subLower;
-        updateConstructMood(`SUBCLASS LINKED // ${data.effective_subclass.toUpperCase()}`);
-      }
+    const reply = accumulatedText || "Could not get a clean signal right now, Guardian.";
+    if (streamedRow) {
+      finalizeStreamedMessage(streamedRow, reply, finalSnippets, finalBuild, finalMeta, finalGhostActions);
+    } else {
+      appendMessage('reborn', 'R.E.B.O.R.N.', reply, finalSnippets, finalBuild, finalMeta, finalGhostActions);
     }
 
-    // Append R.E.B.O.R.N.'s Robotic Ghost reply with DIM Loadout Blueprint if applicable
-    appendMessage('reborn', 'R.E.B.O.R.N.', reply, data.snippets_used, data.recommended_build || null, {
-      effectiveClass: data.effective_class,
-      effectiveSubclass: data.effective_subclass,
-      userPrompt: text
-    });
-
-    // Save to local conversation history
     state.chatHistory.push({ role: 'user', content: text });
     state.chatHistory.push({ role: 'model', content: reply });
 
-    // Auto-speak if enabled
     if (state.autoSpeak) {
       voice.speak(reply);
     } else {
       updateConstructMood('STATUS: STANDBY // SCANNING');
     }
-
   } catch (err) {
     state.isThinking = false;
     if (thinkingEl) thinkingEl.classList.add('hidden');
-    const safeMsg = (err.message && !err.message.includes('Unexpected token') && !err.message.includes('is not valid JSON')) 
-      ? err.message 
+    const safeMsg = (err.message && !err.message.includes('Unexpected token') && !err.message.includes('is not valid JSON'))
+      ? err.message
       : "Vanguard communications relay hit atmospheric turbulence on the server! R.E.B.O.R.N. is reconnecting—give it another quick transmission.";
-    appendMessage('reborn', 'R.E.B.O.R.N.', `Signal dropped out: ${safeMsg}`);
+    if (streamedRow && streamedMarkdownEl) {
+      streamedMarkdownEl.innerHTML = renderMarkdown(`Signal dropped out: ${safeMsg}`);
+    } else {
+      appendMessage('reborn', 'R.E.B.O.R.N.', `Signal dropped out: ${safeMsg}`);
+    }
     updateConstructMood('ERROR // COMMUNICATIONS DRIFT');
   }
 }
 
-function appendMessage(role, sender, text, snippets = [], recommendedBuild = null, meta = {}) {
+function finalizeStreamedMessage(row, text, snippets = [], recommendedBuild = null, meta = {}, ghostActions = []) {
+  const mdEl = row.querySelector('.msg-md-body');
+  if (mdEl) mdEl.innerHTML = renderMarkdown(text);
+
+  const snipSlot = row.querySelector('.msg-snippets-slot');
+  if (snipSlot && snippets && snippets.length > 0) {
+    snipSlot.innerHTML = `<div style="margin-top:8px; font-size:11px; color:#94A3B8; border-top:1px dashed rgba(255,255,255,0.1); padding-top:6px;">
+      <span style="color:#F5A623;">ARCHIVAL INTEL USED:</span> ${snippets.join(', ')}
+    </div>`;
+  }
+
+  const actionsSlot = row.querySelector('.msg-ghost-actions-slot');
+  if (actionsSlot && ghostActions && ghostActions.length > 0) {
+    renderGhostActionBar(actionsSlot, ghostActions);
+  }
+
+  const playBtn = row.querySelector('.btn-msg-voice-listen');
+  if (playBtn) {
+    playBtn.onclick = () => { sfx.playChirp(); voice.speak(text); };
+  }
+
+  const lbBtn = row.querySelector('.btn-msg-loadout-builder');
+  if (lbBtn) {
+    lbBtn.onclick = () => {
+      sfx.playChirp();
+      const forcedBp = recommendedBuild || parseBlueprintFromTextFallback(text, meta, true);
+      const assembled = assembleLoadoutFromBlueprint(forcedBp);
+      openLoadoutBuilderModal(assembled);
+    };
+  }
+
+  const blueprint = recommendedBuild || parseBlueprintFromTextFallback(text, meta, false);
+  if (blueprint && blueprint.isBuildRecommendation) {
+    const slotEl = row.querySelector('.msg-dim-loadout-slot');
+    if (slotEl) renderInlineChatLoadoutCard(slotEl, blueprint);
+  }
+
   const container = document.getElementById('messagesContainer');
-  if (!container) return;
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+function appendMessage(role, sender, text, snippets = [], recommendedBuild = null, meta = {}, ghostActions = []) {
+  const container = document.getElementById('messagesContainer');
+  if (!container) return null;
 
   const row = document.createElement('div');
   row.className = `message-row ${role}`;
@@ -1037,13 +1362,6 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
   const avatarHtml = isReborn 
     ? '<div class="msg-avatar"><div class="ghost-mini-core"></div></div>'
     : '<div class="msg-avatar"><span class="user-avatar-text">G</span></div>';
-
-  let snippetsHtml = '';
-  if (snippets && snippets.length > 0) {
-    snippetsHtml = `<div style="margin-top:8px; font-size:11px; color:#94A3B8; border-top:1px dashed rgba(255,255,255,0.1); padding-top:6px;">
-      <span style="color:#F5A623;">ARCHIVAL INTEL USED:</span> ${snippets.join(', ')}
-    </div>`;
-  }
 
   const headerActionsHtml = isReborn 
     ? `<div style="margin-left:auto; display:inline-flex; gap:6px; align-items:center;">
@@ -1061,43 +1379,21 @@ function appendMessage(role, sender, text, snippets = [], recommendedBuild = nul
         ${headerActionsHtml}
       </div>
       <div class="msg-content">
-        ${renderMarkdown(text)}
-        ${snippetsHtml}
+        <div class="msg-md-body">${renderMarkdown(text)}</div>
+        <div class="msg-ghost-actions-slot"></div>
+        <div class="msg-snippets-slot"></div>
         <div class="msg-dim-loadout-slot"></div>
       </div>
     </div>
   `;
 
-  if (isReborn) {
-    const playBtn = row.querySelector('.btn-msg-voice-listen');
-    if (playBtn) {
-      playBtn.addEventListener('click', () => {
-        sfx.playChirp();
-        voice.speak(text);
-      });
-    }
-
-    const blueprint = recommendedBuild || parseBlueprintFromTextFallback(text, meta, false);
-    const lbBtn = row.querySelector('.btn-msg-loadout-builder');
-    if (lbBtn) {
-      lbBtn.addEventListener('click', () => {
-        sfx.playChirp();
-        const forcedBp = recommendedBuild || parseBlueprintFromTextFallback(text, meta, true);
-        const assembled = assembleLoadoutFromBlueprint(forcedBp);
-        openLoadoutBuilderModal(assembled);
-      });
-    }
-
-    if (blueprint && blueprint.isBuildRecommendation) {
-      const slotEl = row.querySelector('.msg-dim-loadout-slot');
-      if (slotEl) {
-        renderInlineChatLoadoutCard(slotEl, blueprint);
-      }
-    }
+  if (isReborn && !meta.streaming) {
+    finalizeStreamedMessage(row, text, snippets, recommendedBuild, meta, ghostActions);
   }
 
   container.appendChild(row);
   container.scrollTop = container.scrollHeight;
+  return row;
 }
 
 /* ==========================================================================
@@ -2497,6 +2793,40 @@ function renderInventoryHeaderAndSwitcher() {
     renderInventoryStage();
   });
   switcher.appendChild(vaultBtn);
+
+  renderPostmasterGuardBanner();
+}
+
+function renderPostmasterGuardBanner() {
+  const banner = document.getElementById('postmasterGuardBanner');
+  if (!banner) return;
+  const chars = state.bungieData?.characters || [];
+  const alerts = chars
+    .map(ch => ({ ch, count: (ch.postmaster || []).length }))
+    .filter(x => x.count >= 15)
+    .sort((a, b) => b.count - a.count);
+
+  if (alerts.length === 0) {
+    banner.classList.add('hidden');
+    banner.innerHTML = '';
+    return;
+  }
+
+  const critical = alerts.some(a => a.count >= 17);
+  banner.classList.remove('hidden');
+  banner.classList.toggle('is-critical', critical);
+  const summaryParts = alerts.map(a => `<strong>${escapeHtml(a.ch.className.toUpperCase())} ${a.count}/21</strong>`);
+  banner.innerHTML = `
+    <div class="pm-guard-text">
+      <span class="pm-guard-icon" aria-hidden="true">${critical ? '🚨' : '📬'}</span>
+      <span>POSTMASTER ${critical ? 'OVERFLOW RISK' : 'GETTING FULL'}: ${summaryParts.join(' • ')}</span>
+    </div>
+    <button type="button" class="btn-tactical btn-sm btn-pm-guard-pull" id="btnPmGuardPull">📬 Pull Postmaster</button>
+  `;
+  const pullBtn = banner.querySelector('#btnPmGuardPull');
+  if (pullBtn) {
+    pullBtn.addEventListener('click', () => executePullPostmasterForChar(alerts[0].ch.characterId, pullBtn));
+  }
 }
 
 function resolveItemGearTier(item) {
@@ -5391,18 +5721,27 @@ function optimizeLoadoutForTargetStats(draft) {
         null, // Also allow all-Legendary if it hits way better stats
       ];
 
-  // Pre-filter top 10 Legendary candidates per slot for fast combinatorial evaluation
+  // Pre-filter top 12 Legendary candidates per slot (ensuring preferred Armor Set pieces are prioritized)
   const legBySlot = {};
   armorSlots.forEach(sl => {
-    const list = armor
-      .filter(a => a.slot === sl && !a.isExotic)
+    const slotList = armor.filter(a => a.slot === sl && !a.isExotic);
+    const ranked = slotList
       .sort((a, b) => scoreCandidateForTargets(b) - scoreCandidateForTargets(a))
-      .slice(0, 10);
-    legBySlot[sl] = list.length > 0 ? list : [draft.slots?.[sl]].filter(Boolean);
+      .slice(0, 12);
+    if (draft.armorSet) {
+      const wanted = draft.armorSet.toLowerCase();
+      const setMatches = slotList
+        .filter(a => (a.compendiumSet?.name || '').toLowerCase() === wanted && !ranked.includes(a))
+        .slice(0, 3);
+      ranked.push(...setMatches);
+    }
+    legBySlot[sl] = ranked.length > 0 ? ranked : [draft.slots?.[sl]].filter(Boolean);
   });
 
   let bestCombo = null;
   let bestScore = -Infinity;
+  const topCombos = [];
+  const seenComboKeys = new Set();
 
   const evaluateFivePieceCombo = (comboItems) => {
     const baseSum = { Health: 0, Melee: 0, Grenade: 0, Super: 0, Class: 0, Weapons: 0 };
@@ -5491,24 +5830,59 @@ function optimizeLoadoutForTargetStats(draft) {
     });
 
     // Bonus for 2pc / 4pc Compendium Armor Set synergies
+    const activeSetsSummary = [];
     Object.entries(setCounts).forEach(([sName, cnt]) => {
-      if (cnt >= 4) comboScore += 180;
-      else if (cnt >= 2) comboScore += 95;
-      if (draft.armorSet && sName.toLowerCase() === draft.armorSet.toLowerCase() && cnt >= 2) {
-        comboScore += 60;
+      if (cnt >= 4) {
+        comboScore += 195;
+        activeSetsSummary.push(`4pc ${sName}`);
+      } else if (cnt >= 2) {
+        comboScore += 100;
+        activeSetsSummary.push(`2pc ${sName}`);
+      }
+      if (draft.armorSet && sName.toLowerCase() === draft.armorSet.toLowerCase()) {
+        if (cnt >= 4) comboScore += 220;
+        else if (cnt >= 2) comboScore += 130;
       }
     });
+
+    const totalStatSum = statNames.reduce((acc, k) => acc + (k === 'Health' && enforceZeroHealth ? 0 : workingStats[k]), 0);
+    const wastedPoints = statNames.reduce((acc, k) => acc + (workingStats[k] % 10), 0);
 
     if (comboScore > bestScore) {
       bestScore = comboScore;
       bestCombo = {
+        score: comboScore,
         items: comboItems,
         achievedStats: workingStats,
         baseSum,
         modPlan,
         metCount,
         activeTargetCount,
+        activeSets: activeSetsSummary,
+        totalStatSum,
+        wastedPoints,
       };
+    }
+
+    if (topCombos.length < 3 || comboScore > topCombos[topCombos.length - 1].score) {
+      const cKey = comboItems.map(i => i?.itemInstanceId || i?.itemHash || '').join('|');
+      if (!seenComboKeys.has(cKey)) {
+        seenComboKeys.add(cKey);
+        topCombos.push({
+          score: comboScore,
+          items: comboItems,
+          achievedStats: workingStats,
+          baseSum,
+          modPlan,
+          metCount,
+          activeTargetCount,
+          activeSets: activeSetsSummary,
+          totalStatSum,
+          wastedPoints,
+        });
+        topCombos.sort((a, b) => b.score - a.score);
+        if (topCombos.length > 3) topCombos.pop();
+      }
     }
   };
 
@@ -5516,7 +5890,7 @@ function optimizeLoadoutForTargetStats(draft) {
   exoticCandidates.forEach(exoIt => {
     const slotPools = armorSlots.map(sl => {
       if (exoIt && exoIt.slot === sl) return [exoIt];
-      return legBySlot[sl]?.slice(0, 7) || [];
+      return legBySlot[sl]?.slice(0, 8) || [];
     });
     if (slotPools.some(p => p.length === 0)) return;
 
@@ -5574,9 +5948,109 @@ function optimizeLoadoutForTargetStats(draft) {
     pulledItemsCount: pulledItems.length,
     pulledItemNames: pulledItems.map(i => `${i.name} (${i.location === 'vault' ? 'Vault' : (i.isEquipped ? 'Equipped' : 'Bag')})`),
     appliedStatMods,
+    activeSets: bestCombo.activeSets || [],
+    totalStatSum: bestCombo.totalStatSum || 0,
+    wastedPoints: bestCombo.wastedPoints || 0,
   };
+  draft.solverTopCombos = topCombos;
+  draft.activeSolverComboIdx = 0;
 
   return draft.statOptReport;
+}
+
+function populateLbArmorSetSelector(draft) {
+  const sel = document.getElementById('lbArmorSetSelect');
+  if (!sel) return;
+  const className = draft?.className || getActiveCharacter()?.className || 'Warlock';
+  const { armor } = getOwnedGearPoolForClass(className);
+  const setCounts = new Map();
+  (armor || []).forEach(a => {
+    const sName = a.compendiumSet?.name;
+    if (sName) setCounts.set(sName, (setCounts.get(sName) || 0) + 1);
+  });
+  const sortedSets = [...setCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  const currentVal = draft?.armorSet || '';
+  sel.innerHTML = `<option value="">✦ Any Owned Set (Max Stats)</option>` + sortedSets
+    .map(([name, cnt]) => `<option value="${escapeHtml(name)}">${escapeHtml(name)} (${cnt} owned)</option>`)
+    .join('');
+  if (currentVal && setCounts.has(currentVal)) sel.value = currentVal;
+  else sel.value = '';
+}
+
+function renderLbSolverCombosStrip(draft) {
+  const strip = document.getElementById('lbSolverCombosStrip');
+  if (!strip) return;
+  const combos = draft?.solverTopCombos || [];
+  if (combos.length === 0) {
+    strip.classList.add('hidden');
+    strip.innerHTML = '';
+    return;
+  }
+  strip.classList.remove('hidden');
+  const activeIdx = draft.activeSolverComboIdx || 0;
+  strip.innerHTML = `
+    <div class="lb-solver-strip-header">
+      <span>⚡ TOP ${combos.length} ARMOR STAT OPTIMIZER COMBOS</span>
+      <span class="lb-solver-strip-sub">Click any combo to swap all 5 armor pieces + stat mods</span>
+    </div>
+    <div class="lb-solver-combos-grid">
+      ${combos.map((c, idx) => {
+        const setsHtml = (c.activeSets || []).length > 0
+          ? c.activeSets.map(s => `<span class="lb-solver-set-pill">${escapeHtml(s)}</span>`).join('')
+          : '<span class="lb-solver-set-pill dim">Best Raw Stats</span>';
+        const stats = c.achievedStats || {};
+        const topStatsStr = ['Grenade', 'Weapons', 'Melee', 'Super', 'Class', 'Health']
+          .filter(k => (stats[k] || 0) >= 60 || (k === 'Health' && draft.mode === 'PVP'))
+          .slice(0, 4)
+          .map(k => `${k.slice(0, 3).toUpperCase()} ${stats[k] || 0}`)
+          .join(' • ');
+        return `
+          <button type="button" class="lb-solver-combo-card ${idx === activeIdx ? 'active' : ''}" data-combo-idx="${idx}">
+            <div class="lb-solver-combo-top">
+              <span class="lb-solver-rank">#${idx + 1} ${idx === 0 ? 'OPTIMAL' : 'ALT'}</span>
+              <span class="lb-solver-targets">${c.metCount}/${c.activeTargetCount} Targets • ${c.wastedPoints} Waste</span>
+            </div>
+            <div class="lb-solver-stats-line">${escapeHtml(topStatsStr || `Total ${c.totalStatSum}`)}</div>
+            <div class="lb-solver-sets-row">${setsHtml}</div>
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  strip.querySelectorAll('.lb-solver-combo-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.comboIdx || 0);
+      const combo = combos[idx];
+      if (!combo || !activeLoadoutBuilderState) return;
+      sfx.playChirp();
+      activeLoadoutBuilderState.activeSolverComboIdx = idx;
+      if (!activeLoadoutBuilderState.slotMods) activeLoadoutBuilderState.slotMods = {};
+      combo.items.forEach(it => {
+        if (!it || !it.slot) return;
+        activeLoadoutBuilderState.slots[it.slot] = it;
+        if (!activeLoadoutBuilderState.slotMods[it.slot]) activeLoadoutBuilderState.slotMods[it.slot] = {};
+      });
+      combo.modPlan.forEach(mp => {
+        const it = activeLoadoutBuilderState.slots[mp.slot];
+        if (!it) return;
+        const foundMod = findStatModPlugForArmorItem(it, mp.stat, mp.useMinor);
+        if (foundMod) {
+          activeLoadoutBuilderState.slotMods[mp.slot][foundMod.socketIndex] = {
+            socketIndex: foundMod.socketIndex,
+            plugHash: foundMod.plug.plugHash,
+            name: foundMod.plug.name,
+            icon: foundMod.plug.icon || '',
+            description: foundMod.plug.description || '',
+            isEmpty: false,
+          };
+        }
+      });
+      renderLbSolverCombosStrip(activeLoadoutBuilderState);
+      renderLoadoutBuilderWorkspace(activeLoadoutBuilderState);
+      showToast(`Applied Armor Combo #${idx + 1} (${combo.metCount}/${combo.activeTargetCount} stat targets)!`, 'info');
+    });
+  });
 }
 
 function formatItemLocationBadge(item, targetCharId) {
@@ -5753,6 +6227,8 @@ function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
   if (classSelect) classSelect.value = activeLoadoutBuilderState.className || 'Hunter';
   if (subclassSelect) subclassSelect.value = activeLoadoutBuilderState.subclass || 'Solar';
   if (modeSelect) modeSelect.value = activeLoadoutBuilderState.mode || 'PVE';
+  populateLbArmorSetSelector(activeLoadoutBuilderState);
+  renderLbSolverCombosStrip(activeLoadoutBuilderState);
   if (deleteBtn) deleteBtn.classList.toggle('hidden', !activeLoadoutBuilderState.id);
   if (feedbackEl) {
     feedbackEl.classList.add('hidden');
@@ -9601,11 +10077,72 @@ document.addEventListener('DOMContentLoaded', () => {
     handleLbParameterChange(true);
   });
 
+  const lbArmorSetSelect = document.getElementById('lbArmorSetSelect');
+  lbArmorSetSelect?.addEventListener('change', () => {
+    if (!activeLoadoutBuilderState) return;
+    sfx.playChirp();
+    activeLoadoutBuilderState.armorSet = lbArmorSetSelect.value || '';
+    optimizeArmorForStatTargets(activeLoadoutBuilderState);
+    renderLbSolverCombosStrip(activeLoadoutBuilderState);
+    renderLoadoutBuilderWorkspace(activeLoadoutBuilderState);
+  });
+
   if (btnLbAutoOptimize) {
     btnLbAutoOptimize.addEventListener('click', () => {
       sfx.playGhostScan();
       handleLbParameterChange(true);
-      showToast(`Auto-optimized gear for ${activeLoadoutBuilderState?.subclass} ${activeLoadoutBuilderState?.className} (${activeLoadoutBuilderState?.mode})!`, 'info');
+      if (activeLoadoutBuilderState) {
+        if (lbArmorSetSelect) activeLoadoutBuilderState.armorSet = lbArmorSetSelect.value || '';
+        optimizeArmorForStatTargets(activeLoadoutBuilderState);
+        populateLbArmorSetSelector(activeLoadoutBuilderState);
+        renderLbSolverCombosStrip(activeLoadoutBuilderState);
+        renderLoadoutBuilderWorkspace(activeLoadoutBuilderState);
+      }
+      showToast(`Solved top armor combos for ${activeLoadoutBuilderState?.subclass} ${activeLoadoutBuilderState?.className} (${activeLoadoutBuilderState?.mode})!`, 'info');
+    });
+  }
+
+  const btnLbShareBuild = document.getElementById('btnLbShareBuild');
+  if (btnLbShareBuild) {
+    btnLbShareBuild.addEventListener('click', async () => {
+      if (!activeLoadoutBuilderState) return;
+      sfx.playChirp();
+      const s = activeLoadoutBuilderState;
+      const slots = s.slots || {};
+      const compact = {
+        t: (lbLoadoutNameInput?.value || s.title || 'R.E.B.O.R.N. Build').slice(0, 80),
+        c: s.className || 'Warlock',
+        sc: s.subclass || 'Solar',
+        m: s.mode || 'PVE',
+        as: s.armorSet || '',
+        ex: Object.values(slots).find(it => it && it.category === 'Armor' && it.isExotic)?.name || s.exoticArmor || '',
+        w: {
+          k: slots.Kinetic?.name || '',
+          e: slots.Energy?.name || '',
+          h: slots.Heavy?.name || '',
+        },
+        st: s.statTargets || {},
+      };
+      try {
+        const jsonStr = JSON.stringify(compact);
+        const bytes = new TextEncoder().encode(jsonStr);
+        let bin = '';
+        bytes.forEach(b => { bin += String.fromCharCode(b); });
+        const b64url = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        const shareUrl = `${window.location.origin}/?build=${b64url}`;
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(shareUrl);
+        } else {
+          window.prompt('Copy your Discord Build Share Link:', shareUrl);
+        }
+        if (lbFeedbackBanner) {
+          lbFeedbackBanner.classList.remove('hidden', 'error');
+          lbFeedbackBanner.textContent = '🔗 Shareable Discord Build Link copied to clipboard!';
+        }
+        showToast('🔗 Build link copied — paste it in Discord!', 'info');
+      } catch (err) {
+        showToast(`Could not generate share link: ${err.message}`, 'info');
+      }
     });
   }
 
@@ -10537,7 +11074,10 @@ function init3DGuardianAndInspectTheatre() {
       ? f.avatarPath
       : `https://www.bungie.net${f.avatarPath || '/img/profile/avatars/default_avatar.gif'}`;
 
-    let actionsHtml = `<a class="btn-card-action" href="${escapeHtml(f.profileUrl)}" target="_blank" rel="noopener noreferrer">Bungie Profile ↗</a>`;
+    const inspectBtn = f.membershipId
+      ? `<button type="button" class="btn-card-action btn-friend-inspect" data-bnet-mid="${escapeHtml(f.membershipId)}" data-fname="${escapeHtml(f.fullBungieName)}">🔍 Inspect</button>`
+      : '';
+    let actionsHtml = `${inspectBtn} <a class="btn-card-action" href="${escapeHtml(f.profileUrl)}" target="_blank" rel="noopener noreferrer">Profile ↗</a>`;
     if (f.relationship === 'incoming') {
       actionsHtml = `
         <button type="button" class="btn-card-action btn-friend-act" data-faction="accept" data-mid="${escapeHtml(f.membershipId)}">✓ Accept</button>
@@ -10569,8 +11109,173 @@ function init3DGuardianAndInspectTheatre() {
     `;
   };
 
+  const openFriendInspectModal = async ({ bnetMid = '', mType = 0, mId = '', name = 'Guardian' }) => {
+    let modal = document.getElementById('modalFriendInspect');
+    if (!modal) {
+      modal = document.createElement('dialog');
+      modal.id = 'modalFriendInspect';
+      modal.className = 'hud-modal friend-inspect-modal';
+      modal.innerHTML = `
+        <div class="modal-card">
+          <div class="modal-header">
+            <div>
+              <h3 class="modal-title" id="fiModalTitle">🔍 INSPECTING GUARDIAN…</h3>
+              <span class="modal-sub" id="fiModalSub">Pulling live equipped weapons, armor, and 0–200 stats from Bungie.net</span>
+            </div>
+            <button type="button" class="btn-modal-close" id="btnCloseFiModal" aria-label="Close inspector">&times;</button>
+          </div>
+          <div class="modal-body" id="fiModalBody"></div>
+          <div class="modal-footer fi-modal-footer">
+            <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnFiCritique">📡 Critique with R.E.B.O.R.N.</button>
+            <button type="button" class="btn-tactical btn-primary btn-sm" id="btnFiCopyBuild">🛠️ Copy to Loadout Builder</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      modal.querySelector('#btnCloseFiModal')?.addEventListener('click', () => modal.close());
+    }
+
+    const titleEl = modal.querySelector('#fiModalTitle');
+    const subEl = modal.querySelector('#fiModalSub');
+    const bodyEl = modal.querySelector('#fiModalBody');
+    const critiqueBtn = modal.querySelector('#btnFiCritique');
+    const copyBtn = modal.querySelector('#btnFiCopyBuild');
+
+    if (titleEl) titleEl.textContent = `🔍 ${name}`;
+    if (subEl) subEl.textContent = 'Querying live Bungie.net profile telemetry…';
+    if (bodyEl) bodyEl.innerHTML = '<div style="padding:28px; text-align:center; color:#94A3B8;">Loading Guardian loadout…</div>';
+    if (critiqueBtn) critiqueBtn.disabled = true;
+    if (copyBtn) copyBtn.disabled = true;
+
+    try { modal.showModal(); } catch (_) { modal.setAttribute('open', ''); }
+
+    try {
+      const endpoint = (mType && mId)
+        ? `/api/bungie/inspect/${encodeURIComponent(mType)}/${encodeURIComponent(mId)}`
+        : `/api/bungie/inspect-bnet/${encodeURIComponent(bnetMid)}`;
+      const res = await fetch(endpoint);
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) throw new Error(data?.detail || `HTTP ${res.status}`);
+
+      if (titleEl) titleEl.textContent = `🔍 ${data.fullBungieName || name}`;
+      if (subEl) subEl.textContent = `${data.platformName || 'Destiny 2'} • ${(data.characters || []).length} Character(s)`;
+
+      const chars = data.characters || [];
+      let selectedCharIdx = 0;
+
+      const renderCharView = () => {
+        const ch = chars[selectedCharIdx] || chars[0];
+        if (!ch) {
+          bodyEl.innerHTML = '<div style="padding:20px; color:#94A3B8;">No equipped character data available.</div>';
+          return;
+        }
+        const tabsHtml = chars.map((c, i) => `
+          <button type="button" class="fi-char-tab ${i === selectedCharIdx ? 'active' : ''}" data-fi-cidx="${i}">
+            ${classGlyph(c.className)} ${escapeHtml(c.className)} • ✦ ${c.light || 0}
+          </button>
+        `).join('');
+
+        const statsHtml = Object.entries(ch.stats || {}).map(([k, v]) => `
+          <div class="fi-stat-chip">
+            <span class="fi-stat-k">${escapeHtml(k)}</span>
+            <span class="fi-stat-v">${v}</span>
+          </div>
+        `).join('');
+
+        const renderGearList = (list) => (list || []).map(it => `
+          <div class="fi-gear-row ${it.isExotic ? 'is-exotic' : ''}">
+            ${it.icon ? `<img src="https://www.bungie.net${it.icon}" alt="" class="fi-gear-icon" loading="lazy">` : ''}
+            <div class="fi-gear-meta">
+              <div class="fi-gear-name">${escapeHtml(it.name)} <span class="fi-gear-slot">${escapeHtml(it.slot)}</span></div>
+              <div class="fi-gear-perks">${escapeHtml((it.perks || []).join(' • ') || it.type || '')}</div>
+            </div>
+            <div class="fi-gear-power">${it.power || ''}</div>
+          </div>
+        `).join('');
+
+        bodyEl.innerHTML = `
+          <div class="fi-char-tabs">${tabsHtml}</div>
+          <div class="fi-sub-row"><strong>Subclass:</strong> ${escapeHtml(ch.subclass?.name || 'Unknown')}</div>
+          <div class="fi-stats-grid">${statsHtml}</div>
+          <div class="fi-gear-cols">
+            <div>
+              <div class="fi-col-title">WEAPONS</div>
+              ${renderGearList(ch.weapons)}
+            </div>
+            <div>
+              <div class="fi-col-title">ARMOR</div>
+              ${renderGearList(ch.armor)}
+            </div>
+          </div>
+        `;
+
+        bodyEl.querySelectorAll('.fi-char-tab').forEach(tb => {
+          tb.addEventListener('click', () => {
+            sfx.playChirp();
+            selectedCharIdx = Number(tb.dataset.fiCidx || 0);
+            renderCharView();
+          });
+        });
+
+        if (critiqueBtn) {
+          critiqueBtn.disabled = false;
+          critiqueBtn.onclick = () => {
+            modal.close();
+            const wSummary = (ch.weapons || []).map(w => `${w.name} (${(w.perks || []).slice(0, 3).join(', ')})`).join('; ');
+            const exo = (ch.armor || []).find(a => a.isExotic)?.name || 'None';
+            const stSummary = Object.entries(ch.stats || {}).map(([k, v]) => `${k} ${v}`).join(', ');
+            const prompt = `Critique ${data.fullBungieName}'s ${ch.className} (${ch.subclass?.name || 'Subclass'}) loadout: Exotic Armor: ${exo}. Weapons: ${wSummary}. Stats: ${stSummary}. What works well and how can it be improved?`;
+            switchTab('tab-comms');
+            const chatIn = document.getElementById('chatInput');
+            if (chatIn) chatIn.value = prompt;
+            sendChatMessage(prompt);
+          };
+        }
+
+        if (copyBtn) {
+          copyBtn.disabled = false;
+          copyBtn.onclick = () => {
+            modal.close();
+            const exo = (ch.armor || []).find(a => a.isExotic)?.name || '';
+            const kWpn = (ch.weapons || []).find(w => w.slot === 'Kinetic')?.name || '';
+            const eWpn = (ch.weapons || []).find(w => w.slot === 'Energy')?.name || '';
+            const hWpn = (ch.weapons || []).find(w => w.slot === 'Heavy')?.name || '';
+            const subRaw = (ch.subclass?.name || 'Solar');
+            const subGuess = ['Solar', 'Arc', 'Void', 'Strand', 'Stasis', 'Prismatic'].find(s => subRaw.toLowerCase().includes(s.toLowerCase())) || 'Solar';
+            const assembled = assembleLoadoutFromBlueprint({
+              title: `${data.fullBungieName}'s ${ch.className} Build`,
+              className: ch.className || 'Warlock',
+              subclass: subGuess,
+              exoticArmor: exo,
+              weapons: { kinetic: kWpn, energy: eWpn, heavy: hWpn },
+              mode: (ch.stats?.Health || 0) >= 60 ? 'PVP' : 'PVE',
+            });
+            openLoadoutBuilderModal(assembled);
+            showToast(`Cloned ${data.fullBungieName}'s ${ch.className} blueprint using your gear!`, 'info');
+          };
+        }
+      };
+
+      renderCharView();
+    } catch (err) {
+      if (subEl) subEl.textContent = 'Inspection unavailable';
+      if (bodyEl) bodyEl.innerHTML = `<div style="padding:20px; color:#FCA5A5;">⚠ ${escapeHtml(err.message)}</div>`;
+    }
+  };
+
   const bindFriendActionButtons = (container) => {
     if (!container) return;
+    container.querySelectorAll('.btn-friend-inspect').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sfx.playChirp();
+        openFriendInspectModal({
+          bnetMid: btn.getAttribute('data-bnet-mid') || '',
+          mType: Number(btn.getAttribute('data-mtype') || 0),
+          mId: btn.getAttribute('data-dm-id') || '',
+          name: btn.getAttribute('data-fname') || 'Guardian',
+        });
+      });
+    });
     container.querySelectorAll('.btn-friend-act').forEach(btn => {
       btn.addEventListener('click', async () => {
         const action = btn.getAttribute('data-faction');
@@ -10737,6 +11442,10 @@ function init3DGuardianAndInspectTheatre() {
         } else {
           searchGrid.innerHTML = results.map(u => {
             const platforms = (u.destinyMemberships || []).map(m => escapeHtml(m.platformName)).join(' • ') || 'Bungie.net';
+            const primaryM = (u.destinyMemberships || [])[0];
+            const inspectBtn = primaryM
+              ? `<button type="button" class="btn-card-action btn-friend-inspect" data-mtype="${escapeHtml(primaryM.membershipType)}" data-dm-id="${escapeHtml(primaryM.membershipId)}" data-fname="${escapeHtml(u.fullBungieName)}">🔍 Inspect</button>`
+              : (u.membershipId ? `<button type="button" class="btn-card-action btn-friend-inspect" data-bnet-mid="${escapeHtml(u.membershipId)}" data-fname="${escapeHtml(u.fullBungieName)}">🔍 Inspect</button>` : '');
             const addBtn = u.membershipId
               ? `<button type="button" class="btn-card-action btn-friend-act" data-faction="add" data-mid="${escapeHtml(u.membershipId)}">➕ Add Friend</button>`
               : '';
@@ -10750,8 +11459,9 @@ function init3DGuardianAndInspectTheatre() {
                   </div>
                 </div>
                 <div class="friend-actions-row">
+                  ${inspectBtn}
                   ${addBtn}
-                  <a class="btn-card-action" href="${escapeHtml(u.profileUrl)}" target="_blank" rel="noopener noreferrer">Bungie Profile ↗</a>
+                  <a class="btn-card-action" href="${escapeHtml(u.profileUrl)}" target="_blank" rel="noopener noreferrer">Profile ↗</a>
                 </div>
               </div>
             `;
@@ -10797,9 +11507,72 @@ function init3DGuardianAndInspectTheatre() {
   });
 })();
 
-// R.E.B.O.R.N. v3.1 Enhancement Bridge
+// R.E.B.O.R.N. v3.1 Enhancement Bridge, PWA Service Worker & Shared Discord Build Importer
 if (typeof window !== 'undefined') {
   window.__rebornVoice = voice;
   window.__rebornState = state;
   window.__openLoadoutFromBlueprint = (bp) => openLoadoutBuilderModal(bp, true);
+
+  // Register PWA Service Worker for instant mobile app shell launches
+  if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
+  // Native PWA Install Prompt Pill
+  let deferredInstallPrompt = null;
+  window.addEventListener('beforeinstallprompt', (ev) => {
+    ev.preventDefault();
+    deferredInstallPrompt = ev;
+    const installBtn = document.getElementById('btnInstallPwa');
+    if (installBtn) {
+      installBtn.classList.remove('hidden');
+      installBtn.onclick = async () => {
+        if (!deferredInstallPrompt) return;
+        sfx.playChirp();
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice.catch(() => {});
+        deferredInstallPrompt = null;
+        installBtn.classList.add('hidden');
+      };
+    }
+  });
+
+  // Auto-import shared Discord ?build=<base64url> links directly into Loadout Builder
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const encoded = params.get('build');
+      if (!encoded) return;
+      const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (encoded.length % 4)) % 4);
+      const bin = atob(b64);
+      const bytes = Uint8Array.from(bin, ch => ch.charCodeAt(0));
+      const parsed = JSON.parse(new TextDecoder().decode(bytes));
+      if (!parsed || typeof parsed !== 'object') return;
+      setTimeout(() => {
+        const bp = {
+          title: parsed.t || 'Shared Clan Build',
+          className: parsed.c || 'Warlock',
+          subclass: parsed.sc || 'Solar',
+          mode: parsed.m || 'PVE',
+          armorSet: parsed.as || '',
+          exoticArmor: parsed.ex || '',
+          weapons: {
+            kinetic: parsed.w?.k || '',
+            energy: parsed.w?.e || '',
+            heavy: parsed.w?.h || '',
+          },
+          statTargets: parsed.st || null,
+        };
+        const assembled = assembleLoadoutFromBlueprint(bp);
+        if (parsed.st && typeof parsed.st === 'object') {
+          assembled.statTargets = { ...assembled.statTargets, ...parsed.st };
+          optimizeArmorForStatTargets(assembled);
+        }
+        openLoadoutBuilderModal(assembled, true);
+        showToast(`🔗 Imported shared build: ${bp.title}!`, 'info');
+      }, 650);
+    } catch (_) {}
+  });
 }

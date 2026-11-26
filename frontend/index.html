@@ -14,10 +14,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v64">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v64">
-  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v64">
-  <link rel="modulepreload" href="app.js?v=20261126_v64">
+  <link rel="stylesheet" href="styles.css?v=20261126_v65">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v65">
+  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v65">
+  <link rel="modulepreload" href="app.js?v=20261126_v65">
 </head>
 <body class="theme-vanguard">
 
@@ -39,6 +39,11 @@
 
     <!-- Clean Minimalist Right Controls -->
     <div class="hud-status-bar">
+      <button type="button" class="btn-tactical btn-install-pwa hidden" id="btnInstallPwa" title="Install R.E.B.O.R.N. as an App">
+        <span class="icon" aria-hidden="true">📲</span>
+        <span class="text">Install</span>
+      </button>
+
       <button type="button" class="btn-tactical btn-advisory-pill" id="btnOpenFieldAdvisory" title="Read Clan Field Advisory &amp; Development Notice">
         <span class="icon">📢</span>
         <span class="text">Field Advisory</span>
@@ -173,6 +178,9 @@
               <!-- Populated dynamically with Character Emblem Banners + Vault Card -->
             </div>
           </div>
+
+          <!-- Postmaster Overflow Guard Banner -->
+          <div class="postmaster-guard-banner hidden" id="postmasterGuardBanner" role="alert"></div>
 
           <!-- Search & Slot Filter Toolbar -->
           <div class="inv-toolbar">
@@ -696,6 +704,12 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
                 <option value="PVP">🎯 PVP (10+ Health Flinch Priority)</option>
               </select>
             </label>
+            <label class="lb-field-label">
+              <span>ARMOR SET BONUS</span>
+              <select id="lbArmorSetSelect" class="lb-select">
+                <option value="">✦ Any Set (Max Stats)</option>
+              </select>
+            </label>
           </div>
 
           <div class="lb-actions-group">
@@ -714,6 +728,9 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <button type="button" class="btn-item-action btn-ask-reborn" id="btnLbSaveCustom">
               💾 Save Loadout
             </button>
+            <button type="button" class="btn-item-action" id="btnLbShareBuild" title="Copy a 1-click Discord share link for this build">
+              🔗 Share Build
+            </button>
             <button type="button" class="btn-item-action btn-lb-delete hidden" id="btnLbDeleteCustom" title="Delete this saved custom loadout">
               🗑️ Delete
             </button>
@@ -722,6 +739,9 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
 
         <!-- Transfer & Equip Feedback Banner -->
         <div class="inspect-transfer-feedback hidden" id="lbFeedbackBanner"></div>
+
+        <!-- Top 3 DIM Armor Stat Solver Combos -->
+        <div class="lb-solver-combos-strip hidden" id="lbSolverCombosStrip"></div>
 
         <!-- AI Blueprint & Interactive Subclass / Ability Configurator -->
         <div class="lb-ai-blueprint-box" id="lbAiBlueprintBox"></div>
@@ -1938,7 +1958,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v64"></script>
-  <script type="module" src="app.js?v=20261126_v64"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v65"></script>
+  <script type="module" src="app.js?v=20261126_v65"></script>
 </body>
 </html>

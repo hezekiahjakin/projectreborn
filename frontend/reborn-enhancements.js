@@ -537,6 +537,7 @@ function mountGodRollAutoFill() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  window.__openDuplicateAnalyzerModal = openDuplicateAnalyzerModal;
   mountFloatingRebornComms();
   mountDuplicateAnalyzerButton();
   mountGodRollAutoFill();

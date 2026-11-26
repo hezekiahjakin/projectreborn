@@ -4108,3 +4108,149 @@ def perform_bungie_friend_action(access_token: str, action: str, bungie_membersh
         }
     raise RuntimeError(f"{err_msg} ({err_status})")
 
+
+def inspect_bungie_player_loadout(membership_type: int, membership_id: str) -> dict:
+    """Inspect any Guardian's public equipped weapons, armor, subclass, and 0-200 stats."""
+    creds = get_bungie_credentials()
+    api_key = creds["api_key"]
+    if not api_key:
+        raise ValueError("Bungie API key is not configured.")
+
+    profile = _bungie_get(
+        f"/Destiny2/{int(membership_type)}/Profile/{membership_id}/?components=100,200,205,300,305",
+        api_key,
+    )
+    user_info = profile.get("profile", {}).get("data", {}).get("userInfo") or {}
+    gname = user_info.get("bungieGlobalDisplayName") or user_info.get("displayName") or "Guardian"
+    gcode = user_info.get("bungieGlobalDisplayNameCode")
+    full_name = f"{gname}#{int(gcode):04d}" if gcode is not None and str(gcode).isdigit() else str(gname)
+
+    chars_raw = profile.get("characters", {}).get("data") or {}
+    equip_raw = profile.get("characterEquipment", {}).get("data") or {}
+    instances_raw = profile.get("itemComponents", {}).get("instances", {}).get("data") or {}
+    sockets_raw = profile.get("itemComponents", {}).get("sockets", {}).get("data") or {}
+
+    if not chars_raw:
+        raise RuntimeError("This Guardian's Destiny 2 profile is private or has no active characters.")
+
+    all_hashes: Set[int] = set()
+    for cid, ch in chars_raw.items():
+        if ch.get("emblemHash"):
+            all_hashes.add(int(ch["emblemHash"]))
+        for it in (equip_raw.get(cid, {}).get("items") or []):
+            if it.get("itemHash"):
+                all_hashes.add(int(it["itemHash"]))
+            iid = str(it.get("itemInstanceId") or "")
+            if iid:
+                for sk in (sockets_raw.get(iid, {}).get("sockets") or []):
+                    if sk.get("plugHash") and sk.get("isVisible", True):
+                        all_hashes.add(int(sk["plugHash"]))
+
+    defs = resolve_item_definitions(all_hashes, api_key)
+
+    weapon_buckets = {BUCKET_KINETIC: "Kinetic", BUCKET_ENERGY: "Energy", BUCKET_POWER: "Heavy"}
+    armor_buckets = {
+        BUCKET_HELMET: "Helmet",
+        BUCKET_GAUNTLETS: "Gauntlets",
+        BUCKET_CHEST: "Chest Armor",
+        BUCKET_LEGS: "Leg Armor",
+        BUCKET_CLASS_ITEM: "Class Armor",
+    }
+
+    characters_out: List[dict] = []
+    sorted_chars = sorted(
+        chars_raw.items(),
+        key=lambda kv: str(kv[1].get("dateLastPlayed") or ""),
+        reverse=True,
+    )
+    for cid, ch in sorted_chars:
+        c_name = CLASS_TYPE_MAP.get(int(ch.get("classType", 3)), "Guardian")
+        raw_stats = ch.get("stats") or {}
+        stats_map = {label: int(raw_stats.get(str(sh), 0) or 0) for sh, label in ARMOR_STAT_ORDER}
+
+        weapons = []
+        armor = []
+        subclass_info = {"name": "Subclass", "icon": ""}
+
+        for it in (equip_raw.get(cid, {}).get("items") or []):
+            ih = int(it.get("itemHash") or 0)
+            bh = int(it.get("bucketHash") or 0)
+            d = defs.get(ih) or {}
+            dp = d.get("displayProperties") or {}
+            name = dp.get("name") or ""
+            icon = dp.get("icon") or ""
+            tier_type = int((d.get("inventory") or {}).get("tierType") or 0)
+            iid = str(it.get("itemInstanceId") or "")
+            inst = instances_raw.get(iid) or {}
+            power = int((inst.get("primaryStat") or {}).get("value") or 0)
+
+            if bh == BUCKET_SUBCLASS:
+                subclass_info = {"name": name or "Subclass", "icon": icon}
+                continue
+
+            if bh in weapon_buckets or bh in armor_buckets:
+                perks = []
+                for sk in (sockets_raw.get(iid, {}).get("sockets") or []):
+                    ph = int(sk.get("plugHash") or 0)
+                    if not ph or not sk.get("isEnabled", True):
+                        continue
+                    pd = defs.get(ph) or {}
+                    p_name = (pd.get("displayProperties") or {}).get("name") or ""
+                    p_cat = str(pd.get("itemTypeDisplayName") or "").lower()
+                    if not p_name or any(skip in p_cat for skip in ("shader", "ornament", "tracker", "memento", "masterwork", "weapon mod", "armor mod", "upgrade")):
+                        continue
+                    if len(perks) < 5 and p_name not in perks:
+                        perks.append(p_name)
+
+                entry = {
+                    "name": name or "Unknown Gear",
+                    "slot": weapon_buckets.get(bh) or armor_buckets.get(bh),
+                    "type": d.get("itemTypeDisplayName") or "",
+                    "icon": icon,
+                    "power": power,
+                    "isExotic": tier_type == 6,
+                    "perks": perks,
+                }
+                if bh in weapon_buckets:
+                    weapons.append(entry)
+                else:
+                    armor.append(entry)
+
+        slot_rank = {"Kinetic": 0, "Energy": 1, "Heavy": 2, "Helmet": 0, "Gauntlets": 1, "Chest Armor": 2, "Leg Armor": 3, "Class Armor": 4}
+        weapons.sort(key=lambda x: slot_rank.get(x["slot"], 9))
+        armor.sort(key=lambda x: slot_rank.get(x["slot"], 9))
+
+        characters_out.append({
+            "characterId": cid,
+            "className": c_name,
+            "light": int(ch.get("light") or 0),
+            "emblemBackgroundPath": ch.get("emblemBackgroundPath") or "",
+            "subclass": subclass_info,
+            "stats": stats_map,
+            "weapons": weapons,
+            "armor": armor,
+        })
+
+    return {
+        "fullBungieName": full_name,
+        "membershipType": int(membership_type),
+        "membershipId": str(membership_id),
+        "platformName": PLATFORM_NAMES.get(int(membership_type), "Destiny 2"),
+        "characters": characters_out,
+    }
+
+
+def inspect_bungie_player_by_bnet_id(bnet_membership_id: str) -> dict:
+    creds = get_bungie_credentials()
+    api_key = creds["api_key"]
+    mid = str(bnet_membership_id or "").strip()
+    if not mid:
+        raise ValueError("Missing Bungie membershipId.")
+    m_data = _bungie_get(f"/User/GetMembershipsById/{mid}/254/", api_key)
+    destiny_memberships = m_data.get("destinyMemberships") or []
+    if not destiny_memberships:
+        raise RuntimeError("No linked Destiny 2 account found for this Guardian.")
+    primary_id = str(m_data.get("primaryMembershipId") or "")
+    chosen = next((m for m in destiny_memberships if str(m.get("membershipId") or "") == primary_id), None) or destiny_memberships[0]
+    return inspect_bungie_player_loadout(int(chosen["membershipType"]), str(chosen["membershipId"]))
+

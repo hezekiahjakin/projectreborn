@@ -15,7 +15,7 @@ from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 import requests
 from requests.adapters import HTTPAdapter
@@ -49,6 +49,8 @@ try:
         fetch_bungie_friends_and_requests,
         search_bungie_players,
         perform_bungie_friend_action,
+        inspect_bungie_player_loadout,
+        inspect_bungie_player_by_bnet_id,
     )
 except ImportError:
     from bungie_service import (
@@ -71,6 +73,8 @@ except ImportError:
         fetch_bungie_friends_and_requests,
         search_bungie_players,
         perform_bungie_friend_action,
+        inspect_bungie_player_loadout,
+        inspect_bungie_player_by_bnet_id,
     )
 
 try:
@@ -408,6 +412,153 @@ def query_gemini_api(prompt_text: str, conversation_history: List[Dict[str, str]
             continue
 
     return f"ERROR_FALLBACK: {last_error}"
+
+
+def stream_gemini_api(prompt_text: str, conversation_history: List[Dict[str, str]], system_instruction: str):
+    """Yield text chunks live from Gemini SSE endpoint (:streamGenerateContent?alt=sse)."""
+    config = get_config()
+    api_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini_api_key") or ""
+    if not api_key:
+        yield ("error", "ERROR_FALLBACK: GEMINI_API_KEY not configured")
+        return
+
+    candidate_models = [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+        "gemini-flash-latest",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-3.1-pro-preview",
+    ]
+
+    contents = []
+    for msg in conversation_history[-8:]:
+        role = "user" if msg.get("role") in ["user", "human"] else "model"
+        text = msg.get("content", "")
+        if text:
+            contents.append({"role": role, "parts": [{"text": text}]})
+    contents.append({"role": "user", "parts": [{"text": prompt_text}]})
+
+    payload = {
+        "contents": contents,
+        "systemInstruction": {"parts": [{"text": system_instruction}]},
+        "generationConfig": {"temperature": 0.65, "maxOutputTokens": 3072},
+    }
+
+    last_error = ""
+    for model_name in candidate_models:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent?alt=sse&key={api_key}"
+        try:
+            with _http.post(url, json=payload, timeout=(10, 45), stream=True) as resp:
+                if resp.status_code != 200:
+                    last_error = f"{model_name} HTTP {resp.status_code}"
+                    continue
+                emitted_any = False
+                for raw_line in resp.iter_lines(decode_unicode=True):
+                    if not raw_line:
+                        continue
+                    line = raw_line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data_str = line[5:].strip()
+                    if not data_str or data_str == "[DONE]":
+                        continue
+                    try:
+                        chunk_json = json.loads(data_str)
+                    except Exception:
+                        continue
+                    cands = chunk_json.get("candidates") or []
+                    if cands and "content" in cands[0]:
+                        parts = cands[0]["content"].get("parts") or []
+                        for p in parts:
+                            txt = p.get("text")
+                            if txt:
+                                emitted_any = True
+                                yield ("chunk", txt)
+                if emitted_any:
+                    return
+        except Exception as e:
+            last_error = f"{model_name} stream error: {str(e)}"
+            continue
+
+    yield ("error", f"ERROR_FALLBACK: {last_error}")
+
+
+def detect_ghost_actions(user_message: str, reply_text: str, inv_ctx: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Detect actionable in-game Bungie commands relevant to the Guardian's message or R.E.B.O.R.N.'s reply."""
+    actions: List[Dict[str, Any]] = []
+    if not inv_ctx or not isinstance(inv_ctx, dict):
+        return actions
+
+    msg_l = (user_message or "").lower()
+    reply_l = (reply_text or "").lower()
+    combined = msg_l + "\n" + reply_l
+
+    # 1. Postmaster pull command
+    if any(k in combined for k in ("postmaster", "clean my post", "clear post", "empty post")):
+        actions.append({
+            "type": "pull_postmaster",
+            "label": "📬 Pull Postmaster Items",
+            "detail": "Pull safe gear from Postmaster to active character / Vault",
+        })
+
+    # 2. God roll scan / lock command
+    if any(k in msg_l for k in ("god roll", "godroll", "lock my best", "scan my vault", "best rolls")):
+        actions.append({
+            "type": "scan_lock_godrolls",
+            "label": "★ Scan & Lock God Rolls",
+            "detail": "Evaluate your inventory & lock verified PvE/PvP God Rolls",
+        })
+
+    # 3. Duplicate analyzer command
+    if any(k in msg_l for k in ("duplicate", "clean vault", "vault space", "dismantle", "trash weapons")):
+        actions.append({
+            "type": "open_duplicates",
+            "label": "🧹 Open Duplicate Analyzer",
+            "detail": "Group duplicate weapons & prep extras for dismantling",
+        })
+
+    # 4. Transfer & Equip specific owned weapons/exotics mentioned in prompt or reply
+    wants_action = any(k in msg_l for k in ("equip", "pull", "move", "transfer", "swap", "put on", "give me", "best ", "use ", "dps", "heavy", "weapon", "exotic", "build"))
+    if wants_action:
+        chars = inv_ctx.get("characters") or []
+        target_class = ""
+        for cname in ("warlock", "hunter", "titan"):
+            if cname in msg_l:
+                target_class = cname.title()
+                break
+        if not target_class and chars:
+            target_class = (chars[0].get("className") or "").title()
+
+        seen_names = set()
+        owned_candidates: List[Dict[str, Any]] = []
+        for ch in chars:
+            for item in (ch.get("equipped") or []) + (ch.get("inventory") or []):
+                if isinstance(item, dict) and item.get("name"):
+                    owned_candidates.append(item)
+        for item in (inv_ctx.get("vault") or []) + (inv_ctx.get("vaultHighlights") or []):
+            if isinstance(item, dict) and item.get("name"):
+                owned_candidates.append(item)
+
+        for it in owned_candidates:
+            name = str(it.get("name") or "").strip()
+            name_l = name.lower()
+            if len(name_l) < 4 or name_l in seen_names:
+                continue
+            if name_l in msg_l or (len(name_l) >= 6 and name_l in reply_l):
+                seen_names.add(name_l)
+                actions.append({
+                    "type": "transfer_equip",
+                    "itemName": name,
+                    "targetClass": target_class,
+                    "label": f"⚡ Equip {name}" + (f" ({target_class})" if target_class else ""),
+                    "detail": f"Pull & equip {name} live in-game",
+                })
+                if len([a for a in actions if a["type"] == "transfer_equip"]) >= 3:
+                    break
+
+    return actions[:5]
 
 VERIFIED_BUILDS_PATH = os.path.join(DATA_DIR, "verified_builds.json")
 
@@ -1186,128 +1337,222 @@ async def tts_endpoint(req: TTSRequest):
     except Exception as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 
+def _prepare_chat_context(req: ChatRequest) -> dict:
+    compendium_raw, intent = build_compendium_context(
+        req.message,
+        guardian_class=req.guardian_class,
+        subclass=req.subclass,
+        activity=req.activity,
+        tactical_inquiry=req.tactical_inquiry,
+        history=req.history or [],
+        inventory_context=req.inventory_context,
+    )
+    eff_class = intent["effective_class"]
+    eff_subclass = intent["effective_subclass"]
+    eff_activity = intent["effective_activity"]
+
+    inventory_block = ""
+    if intent["is_build_query"] or intent["is_inventory_query"]:
+        try:
+            inventory_block = format_guardian_inventory_for_chat(
+                req.inventory_context,
+                eff_class,
+                eff_subclass,
+                eff_activity,
+                req.message,
+            )
+        except Exception as e_inv:
+            logging.error(f"[Chat Endpoint] Failed to format inventory context: {e_inv}")
+
+    all_wikis = get_all_wiki_data()
+    msg_lower = req.message.lower()
+    matched_snippets = []
+    for item in all_wikis:
+        score = 0
+        title_lower = item.get("title", "").lower()
+        content_lower = item.get("content", "").lower()
+        tags = [t.lower() for t in item.get("tags", [])]
+        for word in msg_lower.split():
+            if len(word) > 2:
+                if word in title_lower:
+                    score += 3
+                if word in tags:
+                    score += 3
+                if word in content_lower:
+                    score += 1
+        if score > 0:
+            matched_snippets.append((score, item))
+    matched_snippets.sort(key=lambda x: x[0], reverse=True)
+    top_snippets = [s[1] for s in matched_snippets[:4]]
+
+    knowledge_context = ""
+    if top_snippets:
+        knowledge_context = "\n\nRELEVANT DESTINY 2 INTEL FROM ARCHIVES:\n"
+        for idx, snip in enumerate(top_snippets, 1):
+            knowledge_context += f"--- Entry {idx}: {snip.get('title')} ({snip.get('category')}) ---\n"
+            knowledge_context += f"{snip.get('content')}\n"
+
+    verified_build = None
+    if intent["is_build_query"]:
+        verified_build = find_verified_build(eff_subclass, eff_class, eff_activity, req.tactical_inquiry or "")
+    verified_blueprint_context = ""
+    if verified_build:
+        verified_blueprint_context = (
+            f"\n\n★ OFFICIAL CLAN VERIFIED BLUEPRINT MATCHED ({verified_build['title']}):\n"
+            f"{format_verified_build_response(verified_build)}\n\n"
+            f"NOTE: Use this battle-tested clan blueprint as a baseline if it fits the Guardian's exact request, and enrich it with any newer 2-Piece / 4-Piece Armor Set Bonuses or Compendium details below!"
+        )
+
+    compendium_block = f"\n\n★ LIVE DESTINY 2 DATA COMPENDIUM TELEMETRY (UP-TO-DATE):\n{compendium_raw}\n" if compendium_raw else ""
+
+    matched_weapons = []
+    all_rolls = get_all_god_rolls()
+    clean_msg = re.sub(r'[^a-z0-9]', '', msg_lower)
+    for w in all_rolls:
+        base_name = re.sub(r'\(.*?\)', '', w.get("name", "")).strip().lower()
+        clean_base = re.sub(r'[^a-z0-9]', '', base_name)
+        if clean_base and len(clean_base) >= 3 and clean_base in clean_msg:
+            matched_weapons.append(w)
+
+    godroll_context = ""
+    if matched_weapons:
+        godroll_context = "\n\n★ VERIFIED WEAPON GOD ROLLS FROM ARMORY ARCHIVES:\n"
+        for w in matched_weapons[:2]:
+            pve = w.get("pve", {})
+            pvp = w.get("pvp", {})
+            godroll_context += (
+                f"- Weapon: {w.get('name')} ({w.get('slot')} Slot // {w.get('element')} {w.get('type')}, {w.get('frame')})\n"
+                f"  Source: {w.get('source')}\n"
+                f"  PVE God Roll: Barrel: {pve.get('barrel')}, Mag: {pve.get('mag')}, Perk 1: {pve.get('perk1')}, Perk 2: {pve.get('perk2')}, MW: {pve.get('masterwork')}. Notes: {pve.get('notes')}\n"
+                f"  PVP God Roll: Barrel: {pvp.get('barrel')}, Mag: {pvp.get('mag')}, Perk 1: {pvp.get('perk1')}, Perk 2: {pvp.get('perk2')}, MW: {pvp.get('masterwork')}. Notes: {pvp.get('notes')}\n"
+            )
+
+    tactical_profile_block = ""
+    if intent["is_build_query"] or intent["is_inventory_query"] or intent["explicit_class"] or intent["explicit_subclass"]:
+        tactical_profile_block = (
+            f"TACTICAL PROFILE (DETECTED CONVERSATIONAL CONTEXT):\n"
+            f"• Guardian Class: {eff_class}\n"
+            f"• Subclass Element: {eff_subclass}\n"
+            f"• Operational Activity: {eff_activity}\n\n"
+        )
+
+    enhanced_prompt = (
+        f"{tactical_profile_block}"
+        f"{inventory_block}"
+        f"{verified_blueprint_context}"
+        f"{compendium_block}"
+        f"{knowledge_context}"
+        f"{godroll_context}\n\n"
+        f"Guardian Transmission: {req.message}"
+    )
+
+    return {
+        "compendium_raw": compendium_raw,
+        "intent": intent,
+        "eff_class": eff_class,
+        "eff_subclass": eff_subclass,
+        "eff_activity": eff_activity,
+        "top_snippets": top_snippets,
+        "verified_build": verified_build,
+        "enhanced_prompt": enhanced_prompt,
+    }
+
+
+@app.post("/api/chat/stream")
+async def chat_stream_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
+    ctx = await run_in_threadpool(_prepare_chat_context, req)
+
+    def _sse_event(event_name: str, data_obj: dict) -> str:
+        return f"event: {event_name}\ndata: {json.dumps(data_obj, ensure_ascii=False)}\n\n"
+
+    def _generate():
+        yield _sse_event("meta", {
+            "effective_class": ctx["eff_class"],
+            "effective_subclass": ctx["eff_subclass"],
+            "compendium_active": bool(ctx["compendium_raw"]),
+            "snippets_used": [s.get("title") for s in ctx["top_snippets"]],
+        })
+        chunks: List[str] = []
+        stream_failed = False
+        for kind, val in stream_gemini_api(ctx["enhanced_prompt"], req.history or [], REBORN_SYSTEM_PROMPT):
+            if kind == "chunk":
+                chunks.append(val)
+                yield _sse_event("chunk", {"text": val})
+            elif kind == "error":
+                stream_failed = True
+                break
+
+        reply = "".join(chunks).strip()
+        if stream_failed or not reply:
+            reply = local_tactical_fallback(
+                req.message,
+                ctx["eff_class"],
+                ctx["eff_activity"],
+                ctx["top_snippets"],
+                ctx["eff_subclass"],
+                req.tactical_inquiry or "General",
+                history=req.history or [],
+                inventory_context=req.inventory_context,
+            )
+            yield _sse_event("chunk", {"text": reply})
+
+        rec_blueprint = extract_build_recommendation_blueprint(
+            reply_text=reply,
+            user_message=req.message,
+            eff_class=ctx["eff_class"],
+            eff_subclass=ctx["eff_subclass"],
+            eff_activity=ctx["eff_activity"],
+            verified_build=ctx["verified_build"],
+            inv_ctx=req.inventory_context,
+            is_build_query=bool(ctx["intent"].get("is_build_query")),
+        )
+        ghost_actions = detect_ghost_actions(req.message, reply, req.inventory_context)
+
+        try:
+            history = load_json(HISTORY_PATH, [])
+            history.append({
+                "id": str(uuid.uuid4()),
+                "user": req.message,
+                "reborn": reply,
+                "guardian_class": ctx["eff_class"],
+                "activity": ctx["eff_activity"],
+                "timestamp": time.time(),
+            })
+            save_json(HISTORY_PATH, history[-50:])
+            cfg = get_config()
+            background_tasks.add_task(sync_to_firebase, "reborn/chat_history", history[-20:], cfg.get("firebase_auth_token", ""))
+        except Exception:
+            pass
+
+        yield _sse_event("done", {
+            "reply": reply,
+            "effective_class": ctx["eff_class"],
+            "effective_subclass": ctx["eff_subclass"],
+            "compendium_active": bool(ctx["compendium_raw"]),
+            "snippets_used": [s.get("title") for s in ctx["top_snippets"]],
+            "recommended_build": rec_blueprint,
+            "ghost_actions": ghost_actions,
+        })
+
+    return StreamingResponse(
+        _generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.post("/api/chat")
 async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
     try:
-        # Assemble live Destiny 2 Data Compendium telemetry & detect explicit class/subclass from message and history
-        compendium_raw, intent = build_compendium_context(
-            req.message,
-            guardian_class=req.guardian_class,
-            subclass=req.subclass,
-            activity=req.activity,
-            tactical_inquiry=req.tactical_inquiry,
-            history=req.history or [],
-            inventory_context=req.inventory_context,
-        )
-        eff_class = intent["effective_class"]
-        eff_subclass = intent["effective_subclass"]
-        eff_activity = intent["effective_activity"]
-
-        # Format live Guardian inventory & vault context ONLY for build or inventory queries
-        inventory_block = ""
-        if intent["is_build_query"] or intent["is_inventory_query"]:
-            try:
-                inventory_block = format_guardian_inventory_for_chat(
-                    req.inventory_context,
-                    eff_class,
-                    eff_subclass,
-                    eff_activity,
-                    req.message,
-                )
-            except Exception as e_inv:
-                logging.error(f"[Chat Endpoint] Failed to format inventory context: {e_inv}")
-
-        # Retrieve relevant wiki knowledge
-        all_wikis = get_all_wiki_data()
-        msg_lower = req.message.lower()
-        
-        # Filter relevant snippets (keyword match)
-        matched_snippets = []
-        for item in all_wikis:
-            score = 0
-            title_lower = item.get("title", "").lower()
-            content_lower = item.get("content", "").lower()
-            tags = [t.lower() for t in item.get("tags", [])]
-            
-            for word in msg_lower.split():
-                if len(word) > 2:
-                    if word in title_lower:
-                        score += 3
-                    if word in tags:
-                        score += 3
-                    if word in content_lower:
-                        score += 1
-            
-            if score > 0:
-                matched_snippets.append((score, item))
-                
-        matched_snippets.sort(key=lambda x: x[0], reverse=True)
-        top_snippets = [s[1] for s in matched_snippets[:4]]
-        
-        knowledge_context = ""
-        if top_snippets:
-            knowledge_context = "\n\nRELEVANT DESTINY 2 INTEL FROM ARCHIVES:\n"
-            for idx, snip in enumerate(top_snippets, 1):
-                knowledge_context += f"--- Entry {idx}: {snip.get('title')} ({snip.get('category')}) ---\n"
-                knowledge_context += f"{snip.get('content')}\n"
-        
-        # Check for exact verified clan build match using the effective class & subclass
-        verified_build = None
-        if intent["is_build_query"]:
-            verified_build = find_verified_build(eff_subclass, eff_class, eff_activity, req.tactical_inquiry or "")
-        verified_blueprint_context = ""
-        if verified_build:
-            verified_blueprint_context = (
-                f"\n\n★ OFFICIAL CLAN VERIFIED BLUEPRINT MATCHED ({verified_build['title']}):\n"
-                f"{format_verified_build_response(verified_build)}\n\n"
-                f"NOTE: Use this battle-tested clan blueprint as a baseline if it fits the Guardian's exact request, and enrich it with any newer 2-Piece / 4-Piece Armor Set Bonuses or Compendium details below!"
-            )
-
-        compendium_block = ""
-        if compendium_raw:
-            compendium_block = f"\n\n★ LIVE DESTINY 2 DATA COMPENDIUM TELEMETRY (UP-TO-DATE):\n{compendium_raw}\n"
-
-        # Check for weapon god roll match in database
-        matched_weapons = []
-        all_rolls = get_all_god_rolls()
-        for w in all_rolls:
-            base_name = re.sub(r'\(.*?\)', '', w.get("name", "")).strip().lower()
-            clean_base = re.sub(r'[^a-z0-9]', '', base_name)
-            clean_msg = re.sub(r'[^a-z0-9]', '', msg_lower)
-            if clean_base and len(clean_base) >= 3 and clean_base in clean_msg:
-                matched_weapons.append(w)
-        
-        godroll_context = ""
-        if matched_weapons:
-            godroll_context = "\n\n★ VERIFIED WEAPON GOD ROLLS FROM ARMORY ARCHIVES:\n"
-            for w in matched_weapons[:2]:
-                pve = w.get("pve", {})
-                pvp = w.get("pvp", {})
-                godroll_context += (
-                    f"- Weapon: {w.get('name')} ({w.get('slot')} Slot // {w.get('element')} {w.get('type')}, {w.get('frame')})\n"
-                    f"  Source: {w.get('source')}\n"
-                    f"  PVE God Roll: Barrel: {pve.get('barrel')}, Mag: {pve.get('mag')}, Perk 1: {pve.get('perk1')}, Perk 2: {pve.get('perk2')}, MW: {pve.get('masterwork')}. Notes: {pve.get('notes')}\n"
-                    f"  PVP God Roll: Barrel: {pvp.get('barrel')}, Mag: {pvp.get('mag')}, Perk 1: {pvp.get('perk1')}, Perk 2: {pvp.get('perk2')}, MW: {pvp.get('masterwork')}. Notes: {pvp.get('notes')}\n"
-                )
-
-        tactical_profile_block = ""
-        if intent["is_build_query"] or intent["is_inventory_query"] or intent["explicit_class"] or intent["explicit_subclass"]:
-            tactical_profile_block = (
-                f"TACTICAL PROFILE (DETECTED CONVERSATIONAL CONTEXT):\n"
-                f"• Guardian Class: {eff_class}\n"
-                f"• Subclass Element: {eff_subclass}\n"
-                f"• Operational Activity: {eff_activity}\n\n"
-            )
-
-        enhanced_prompt = (
-            f"{tactical_profile_block}"
-            f"{inventory_block}"
-            f"{verified_blueprint_context}"
-            f"{compendium_block}"
-            f"{knowledge_context}"
-            f"{godroll_context}\n\n"
-            f"Guardian Transmission: {req.message}"
-        )
+        ctx = await run_in_threadpool(_prepare_chat_context, req)
+        eff_class = ctx["eff_class"]
+        eff_subclass = ctx["eff_subclass"]
+        eff_activity = ctx["eff_activity"]
+        top_snippets = ctx["top_snippets"]
+        compendium_raw = ctx["compendium_raw"]
+        verified_build = ctx["verified_build"]
+        intent = ctx["intent"]
+        enhanced_prompt = ctx["enhanced_prompt"]
         
         reply = await run_in_threadpool(query_gemini_api, enhanced_prompt, req.history or [], REBORN_SYSTEM_PROMPT)
         if reply.startswith("ERROR_FALLBACK"):
@@ -1351,6 +1596,7 @@ async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
         cfg = get_config()
         background_tasks.add_task(sync_to_firebase, "reborn/chat_history", history[-20:], cfg.get("firebase_auth_token", ""))
         
+        ghost_actions = detect_ghost_actions(req.message, reply, req.inventory_context)
         return {
             "reply": reply,
             "effective_class": eff_class,
@@ -1358,6 +1604,7 @@ async def chat_endpoint(req: ChatRequest, background_tasks: BackgroundTasks):
             "compendium_active": bool(compendium_raw),
             "snippets_used": [s.get("title") for s in top_snippets],
             "recommended_build": rec_blueprint,
+            "ghost_actions": ghost_actions,
         }
     except Exception as exc:
         logging.error(f"[Chat Endpoint Exception] {traceback.format_exc()}")
@@ -2836,6 +3083,22 @@ async def bungie_friend_action_endpoint(body: BungieFriendActionRequest, req: Re
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
+
+@app.get("/api/bungie/inspect/{membership_type}/{membership_id}")
+async def inspect_bungie_player_endpoint(membership_type: int, membership_id: str):
+    try:
+        return await run_in_threadpool(inspect_bungie_player_loadout, membership_type, membership_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/bungie/inspect-bnet/{bnet_membership_id}")
+async def inspect_bungie_bnet_player_endpoint(bnet_membership_id: str):
+    try:
+        return await run_in_threadpool(inspect_bungie_player_by_bnet_id, bnet_membership_id)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.on_event("startup")
