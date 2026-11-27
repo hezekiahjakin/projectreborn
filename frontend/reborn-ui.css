@@ -2414,3 +2414,21 @@ dialog.hud-modal .modal-footer {
   content-visibility: auto;
   contain-intrinsic-size: auto 92px;
 }
+
+
+/* Authentic Destiny 2 Class Crest Icons (Hunter / Warlock / Titan) */
+.destiny-class-icon {
+  display: inline-block;
+  width: 1.08em;
+  height: 1.08em;
+  vertical-align: -0.16em;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+}
+
+.switcher-class,
+.char-mobile-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}

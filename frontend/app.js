@@ -2806,9 +2806,16 @@ function escapeHtml(str) {
 
 function classGlyph(className) {
   const c = (className || '').toLowerCase();
-  if (c === 'hunter') return '◆';
-  if (c === 'warlock') return '▲';
-  if (c === 'titan') return '■';
+  // Authentic Destiny 2 class crest vector icons (Hunter chevrons, Warlock tri-peak, Titan hexagonal shield)
+  if (c === 'hunter') {
+    return `<svg class="destiny-class-icon is-hunter" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M3 5h6.2L16 14.2 22.8 5H29L16 22.2 3 5zm4.6 10.8L16 26.8l8.4-11 4.6 0L16 32 3 15.8h4.6z"/></svg>`;
+  }
+  if (c === 'warlock') {
+    return `<svg class="destiny-class-icon is-warlock" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3 4.2 27.5h4.3L16 11.8l7.5 15.7h4.3L16 3zm0 11.4-5.7 12.1h3.2L16 21l2.5 5.5h3.2L16 14.4zM1 27.5h3.2L11.2 13 9.4 9.5 1 27.5zm26.8 0H31L22.6 9.5 20.8 13l7 14.5z"/></svg>`;
+  }
+  if (c === 'titan') {
+    return `<svg class="destiny-class-icon is-titan" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 2 5 7.4v7.2l11-5.4 11 5.4V7.4L16 2zm-11 14.8v7.8L15 29.6v-8.4L5 16.8zm22 0-10 4.4v8.4l10-5v-7.8zm-11-4.9-8.8 4.3 8.8 4 8.8-4-8.8-4.3z"/></svg>`;
+  }
   return '❖';
 }
 
@@ -4411,7 +4418,7 @@ function openSavedLoadoutModal(character, loadout) {
     }
   }
   if (subEl) {
-    subEl.textContent = `${classGlyph(character.className)} ${character.className.toUpperCase()} // SAVED LOADOUT SLOT #${loadout.slotNumber}`;
+    subEl.innerHTML = `${classGlyph(character.className)} ${escapeHtml(character.className.toUpperCase())} // SAVED LOADOUT SLOT #${escapeHtml(loadout.slotNumber)}`;
   }
   if (titleEl) {
     titleEl.textContent = loadout.name || `Loadout ${loadout.slotNumber}`;
