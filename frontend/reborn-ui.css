@@ -495,6 +495,7 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   text-overflow: ellipsis;
 }
 
+.wiki-actions,
 .wiki-header-actions,
 .vault-header-actions,
 .lb-action-bar {
@@ -503,14 +504,62 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   gap: 8px !important;
 }
 
+.wiki-actions > button,
 .wiki-header-actions > button,
+.vault-header-actions > button,
 .lb-action-bar > button {
   flex: 1 1 auto;
 }
 
+/* Guides, Friends & God Rolls headers + controls stack cleanly on mobile */
+.wiki-header-card,
+.vault-header-card,
+.wiki-controls,
+.friends-controls-bar,
+.godrolls-filter-bar {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+}
+
+.friends-search-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  width: 100%;
+}
+
+.godrolls-pills-row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+}
+
+.godrolls-pills-row .pills-group {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  align-items: center;
+  gap: 6px !important;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.godrolls-pills-row .pills-group::-webkit-scrollbar {
+  display: none;
+}
+
+.godrolls-pills-row .pills-group > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 36px !important;
+}
+
 /* Horizontal swipeable filter pills on mobile */
+.category-filters,
 .wiki-filter-bar,
-.godrolls-filter-bar,
 .slot-filter-group,
 .friends-filter-bar,
 .inv-filter-pills,
@@ -524,8 +573,8 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   scrollbar-width: none;
 }
 
+.category-filters::-webkit-scrollbar,
 .wiki-filter-bar::-webkit-scrollbar,
-.godrolls-filter-bar::-webkit-scrollbar,
 .slot-filter-group::-webkit-scrollbar,
 .friends-filter-bar::-webkit-scrollbar,
 .inv-filter-pills::-webkit-scrollbar,
@@ -533,8 +582,8 @@ button, .btn-tactical, .btn-card-action, .btn-item-action {
   display: none;
 }
 
+.category-filters > button,
 .wiki-filter-bar > button,
-.godrolls-filter-bar > button,
 .slot-filter-group > button,
 .friends-filter-bar > button,
 .inv-filter-pills > button,
@@ -1613,7 +1662,130 @@ dialog.hud-modal .modal-footer {
   box-shadow: 0 0 22px rgba(245, 166, 35, 0.32) !important;
 }
 
+/* Mobile Premium Polish: Hide floating FAB while Ask Ghost sheet is open on phones (prevents covering Send button) */
+@media (max-width: 767.98px) {
+  .reborn-quick-fab.is-open {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: scale(0.9);
+  }
+
+  .comms-voice-bar {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 10px !important;
+  }
+
+  .comms-voice-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .comms-voice-bar > * {
+    flex: 0 0 auto;
+  }
+
+  .chat-input-bar {
+    padding: 8px !important;
+    gap: 6px !important;
+  }
+
+  .chat-input-bar .btn-send {
+    padding: 0 14px !important;
+    min-width: 44px;
+  }
+
+  .chat-input-bar .btn-send .send-text {
+    display: none;
+  }
+
+  /* Loadout Builder Mobile App Layout */
+  .lb-page-header-banner {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  .lb-page-header-nav {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100%;
+  }
+
+  .lb-page-header-nav > button {
+    padding: 6px 6px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lb-selectors-group {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+
+  .lb-actions-group {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    width: 100%;
+  }
+
+  .lb-actions-group #btnLbEquipNow {
+    grid-column: 1 / -1;
+  }
+
+  .lb-actions-group > button {
+    min-height: 40px !important;
+    padding: 6px 8px !important;
+    font-size: 11.5px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Native mobile bottom-sheet polish for older .modal-content dialogs too */
+  dialog.hud-modal .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--r-radius-lg) var(--r-radius-lg) 0 0 !important;
+    padding-bottom: calc(18px + var(--r-safe-bottom)) !important;
+  }
+}
+
 @media (min-width: 768px) {
+  .wiki-header-card,
+  .vault-header-card {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .friends-search-group {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .godrolls-pills-row {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .category-filters {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+
   #tab-comms.ghost-comms-drawer.ghost-drawer-open {
     inset: auto 20px 80px auto;
     width: min(880px, calc(100vw - 40px));

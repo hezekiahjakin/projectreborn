@@ -2369,7 +2369,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v76');
+    const mod = await import('./ghost-3d.js?v=20261126_v77');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
