@@ -2561,13 +2561,34 @@ def _extract_bungie_tokens(req: Request) -> tuple[str, str]:
     return access_token, refresh_token
 
 
+_INVENTORY_MEM_CACHE: Dict[str, tuple] = {}
+_INVENTORY_CACHE_TTL = 45.0
+
+
+def _inv_cache_key(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:24]
+
+
+def _invalidate_inv_cache(token: str):
+    if token:
+        _INVENTORY_MEM_CACHE.pop(_inv_cache_key(token), None)
+
+
 @app.get("/api/bungie/inventory")
-async def get_bungie_inventory_endpoint(req: Request, response: Response):
+async def get_bungie_inventory_endpoint(req: Request, response: Response, force: bool = False):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     access_token, refresh_token = _extract_bungie_tokens(req)
     if not access_token:
         raise HTTPException(status_code=401, detail="Not signed in to Bungie.net.")
+
+    c_key = _inv_cache_key(access_token)
+    now_ts = time.time()
+    if not force and c_key in _INVENTORY_MEM_CACHE:
+        ts, cached_payload = _INVENTORY_MEM_CACHE[c_key]
+        if now_ts - ts < _INVENTORY_CACHE_TTL:
+            response.headers["X-Reborn-Cache"] = "HIT"
+            return cached_payload
 
     refreshed_session = None
     try:
@@ -2588,9 +2609,16 @@ async def get_bungie_inventory_endpoint(req: Request, response: Response):
     god_rolls = get_all_god_rolls()
     analyze_arsenal_duplicates_and_trash(data, god_rolls)
 
-    if refreshed_session:
-        data["refreshed_session"] = refreshed_session
+    # Keep cache bounded to 32 active users
+    if len(_INVENTORY_MEM_CACHE) > 32:
+        _INVENTORY_MEM_CACHE.clear()
+    active_tok = refreshed_session["access_token"] if refreshed_session else access_token
+    _INVENTORY_MEM_CACHE[_inv_cache_key(active_tok)] = (time.time(), data)
 
+    if refreshed_session:
+        data = {**data, "refreshed_session": refreshed_session}
+
+    response.headers["X-Reborn-Cache"] = "MISS"
     return data
 
 
@@ -2641,6 +2669,7 @@ async def post_bungie_transfer_endpoint(body: BungieTransferRequest, req: Reques
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -2689,6 +2718,7 @@ async def post_bungie_lock_endpoint(body: BungieLockBatchRequest, req: Request):
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -2744,6 +2774,7 @@ async def post_bungie_dismantle_prep_endpoint(body: BungieDismantlePrepRequest, 
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -2783,6 +2814,7 @@ async def post_bungie_equip_loadout_endpoint(body: BungieEquipLoadoutRequest, re
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -2847,6 +2879,7 @@ async def post_bungie_insert_plug_endpoint(body: BungieInsertSocketPlugRequest, 
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -2882,6 +2915,7 @@ async def post_bungie_equip_custom_loadout_endpoint(body: BungieEquipCustomLoado
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -3157,6 +3191,7 @@ async def get_bungie_friends_endpoint(req: Request):
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 @app.get("/api/bungie/vendors")
@@ -3180,6 +3215,7 @@ async def get_bungie_vendors_endpoint(req: Request, characterId: str = "", force
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -3203,6 +3239,7 @@ async def get_bungie_pgcr_endpoint(req: Request, characterId: str = "", count: i
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 
@@ -3235,6 +3272,7 @@ async def bungie_friend_action_endpoint(body: BungieFriendActionRequest, req: Re
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
+    _invalidate_inv_cache(access_token)
     return res
 
 

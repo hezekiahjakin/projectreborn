@@ -2398,3 +2398,19 @@ dialog.hud-modal .modal-footer {
     min-height: 120px !important;
   }
 }
+
+
+/* ==========================================================================
+   RENDERING PERFORMANCE (v83): CONTENT-VISIBILITY FOR 700-ITEM VAULT & LISTS
+   ========================================================================== */
+.gear-card,
+.inv-item-card,
+.godroll-card,
+.wiki-card,
+.friend-card,
+.svc-row,
+.vr-item-row,
+.pgcr-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 92px;
+}

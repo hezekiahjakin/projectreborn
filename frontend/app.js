@@ -3027,7 +3027,7 @@ function hydrateCachedBungieInventory() {
   }
 }
 
-async function loadBungieInventory(silent = false) {
+async function loadBungieInventory(silent = false, forceFresh = false) {
   if (!state.bungieSession || !state.bungieSession.access_token) {
     updateBungieAuthUI();
     return;
@@ -3057,7 +3057,8 @@ async function loadBungieInventory(silent = false) {
 
   _inventorySyncPromise = (async () => {
     try {
-      const res = await fetch(`/api/bungie/inventory?_t=${Date.now()}`, {
+      const qs = forceFresh ? `force=1&_t=${Date.now()}` : `_t=${Date.now()}`;
+      const res = await fetch(`/api/bungie/inventory?${qs}`, {
         cache: 'no-store',
         headers: {
           'Authorization': `Bearer ${state.bungieSession.access_token}`,
@@ -3107,14 +3108,14 @@ async function loadBungieInventory(silent = false) {
   return _inventorySyncPromise;
 }
 
-// Auto-sync silently when returning to the browser tab or every 12s while active
+// Auto-sync silently when returning to the browser tab (30s cooldown) or every 90s while active
 (function setupAutoInventorySync() {
-  const AUTO_SYNC_COOLDOWN_MS = 3000;
+  const AUTO_SYNC_COOLDOWN_MS = 30000;
   const triggerSilentSyncIfReady = () => {
     if (document.visibilityState !== 'visible') return;
     if (!state.bungieSession?.access_token) return;
     if (Date.now() - _lastInventorySyncAt < AUTO_SYNC_COOLDOWN_MS) return;
-    loadBungieInventory(true);
+    loadBungieInventory(true, false);
   };
 
   document.addEventListener('visibilitychange', () => {
@@ -3124,10 +3125,10 @@ async function loadBungieInventory(silent = false) {
   });
   window.addEventListener('focus', triggerSilentSyncIfReady);
   setInterval(() => {
-    if (document.visibilityState === 'visible' && state.bungieSession?.access_token) {
-      loadBungieInventory(true);
+    if (document.visibilityState === 'visible' && state.bungieSession?.access_token && (Date.now() - _lastInventorySyncAt >= 85000)) {
+      loadBungieInventory(true, false);
     }
-  }, 12000);
+  }, 90000);
 })();
 
 function renderInventoryHeaderAndSwitcher() {
@@ -10282,7 +10283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnRefreshInventory) {
     btnRefreshInventory.addEventListener('click', () => {
       sfx.playGhostScan();
-      loadBungieInventory(false);
+      loadBungieInventory(false, true);
     });
   }
 
@@ -10876,13 +10877,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initSpeechRecognition();
   initFieldAdvisoryModal();
+  // Prioritize God Rolls + server config; defer secondary tabs to browser idle so Inventory renders immediately
   Promise.allSettled([
     fetchBungieServerConfigStatus(),
-    loadWikiData(),
     loadGodRolls(),
-    loadBuilds(),
-    loadMobileConnectInfo(),
   ]);
+  const deferIdle = window.requestIdleCallback || ((fn) => setTimeout(fn, 650));
+  deferIdle(() => {
+    Promise.allSettled([
+      loadWikiData(),
+      loadBuilds(),
+      loadMobileConnectInfo(),
+    ]);
+  }, { timeout: 1400 });
 });
 
 /* ==========================================================================
