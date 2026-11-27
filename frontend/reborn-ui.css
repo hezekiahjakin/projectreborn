@@ -2747,3 +2747,122 @@ dialog.hud-modal .modal-footer {
     animation: d2SheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
+
+
+/* ==========================================================================
+   PRO COMPANION SUITE (v86): FARMING MODE, COMPARATOR, WISHLIST & FIRETEAM HUB
+   ========================================================================== */
+.ghost-nextgen-bar {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  gap: 6px !important;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.ghost-nextgen-bar::-webkit-scrollbar { display: none; }
+.ghost-nextgen-bar > .ghost-tool-pill {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  padding: 7px 11px !important;
+  min-height: 36px !important;
+}
+
+.ghost-tool-pill.is-farming-active {
+  border-color: #10b981 !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.24), rgba(6, 78, 59, 0.45)) !important;
+  color: #a7f3d0 !important;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+}
+
+.compare-modal-content {
+  width: min(920px, 100%);
+}
+.cmp-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.cmp-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .cmp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.cmp-col-card {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cmp-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cmp-perks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.cmp-perk-pill {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #e0f2fe;
+}
+.cmp-stats-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.cmp-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.cmp-stat-name { color: #94a3b8; }
+.cmp-stat-val { font-weight: 700; color: #f8fafc; }
+.cmp-diff.is-pos { color: #34d399; font-weight: 800; margin-left: 4px; }
+.cmp-diff.is-neg { color: #f87171; font-weight: 800; margin-left: 4px; }
+
+.pat-wishlist-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+@media (min-width: 640px) {
+  .pat-wishlist-form { grid-template-columns: 1fr 1.2fr auto; }
+}
+
+.fireteam-presence-strip {
+  padding: 10px 14px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(56, 189, 248, 0.10));
+  border: 1px solid rgba(16, 185, 129, 0.42);
+  margin-bottom: 10px;
+}
+.ft-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #d1fae5;
+}
+.ft-strip-sub {
+  font-size: 11px;
+  color: #93c5fd;
+}

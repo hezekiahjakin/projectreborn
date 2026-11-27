@@ -4640,3 +4640,96 @@ def fetch_recent_activities_pgcr(access_token: str, character_id: str = "", coun
         "matches": matches_out,
     }
 
+
+_PATTERNS_CACHE: Dict[str, Tuple[float, dict]] = {}
+_PATTERNS_CACHE_TTL = 300.0
+
+
+def fetch_craftable_patterns(access_token: str, force: bool = False) -> dict:
+    """Pull live Deepsight weapon crafting pattern progress (e.g. 3/5) from Bungie ProfileRecords (component 900)."""
+    creds = get_bungie_credentials()
+    api_key = creds["api_key"]
+    if not api_key:
+        raise ValueError("Bungie API key is not configured.")
+
+    m_type, m_id, _, display_name = _resolve_active_membership_and_char(access_token, api_key, "")
+    cache_key = f"{m_type}:{m_id}"
+    now = time.time()
+    if not force and cache_key in _PATTERNS_CACHE:
+        ts, cached = _PATTERNS_CACHE[cache_key]
+        if now - ts < _PATTERNS_CACHE_TTL:
+            return cached
+
+    prof = _bungie_get(f"/Destiny2/{m_type}/Profile/{m_id}/?components=900", api_key, access_token)
+    records_raw = (prof.get("profileRecords") or {}).get("data", {}).get("records") or {}
+
+    in_progress: List[dict] = []
+    completed: List[dict] = []
+
+    if os.path.exists(MANIFEST_DB_PATH) and records_raw:
+        try:
+            conn = _open_fast_sqlite(MANIFEST_DB_PATH)
+            try:
+                cur = conn.execute("SELECT id, json FROM DestinyRecordDefinition")
+                for row_id, raw_json in cur:
+                    if not raw_json:
+                        continue
+                    # Fast string pre-filter before JSON parse for speed
+                    if "Pattern" not in raw_json and "pattern" not in raw_json and "Deepsight" not in raw_json:
+                        continue
+                    try:
+                        obj = json.loads(raw_json)
+                    except Exception:
+                        continue
+                    dp = obj.get("displayProperties") or {}
+                    name = dp.get("name") or ""
+                    desc = dp.get("description") or ""
+                    if not name:
+                        continue
+                    # Bungie weapon pattern records have completionInfo or description referencing weapon pattern
+                    if "pattern" not in desc.lower() and "shaped" not in desc.lower() and "deepsight" not in desc.lower():
+                        continue
+                    u_hash = row_id if row_id >= 0 else row_id + (1 << 32)
+                    rec_state = records_raw.get(str(u_hash))
+                    if not rec_state:
+                        continue
+                    objs = rec_state.get("objectives") or []
+                    if not objs:
+                        continue
+                    o0 = objs[0]
+                    prog = int(o0.get("progress") or 0)
+                    comp = int(o0.get("completionValue") or 0)
+                    if comp <= 0 or comp > 10:
+                        continue
+                    is_done = bool(o0.get("complete")) or prog >= comp
+                    entry = {
+                        "recordHash": u_hash,
+                        "name": name,
+                        "icon": dp.get("icon") or "",
+                        "progress": min(prog, comp),
+                        "total": comp,
+                        "completed": is_done,
+                        "description": desc,
+                    }
+                    if is_done:
+                        completed.append(entry)
+                    else:
+                        in_progress.append(entry)
+            finally:
+                conn.close()
+        except Exception as e:
+            print(f"[Patterns] Manifest scan warning: {e}")
+
+    in_progress.sort(key=lambda x: (-(x["progress"] / max(1, x["total"])), -x["progress"], x["name"]))
+    completed.sort(key=lambda x: x["name"])
+
+    result = {
+        "playerName": display_name,
+        "totalUnlocked": len(completed),
+        "totalInProgress": len(in_progress),
+        "inProgress": in_progress[:80],
+        "completed": completed[:120],
+    }
+    _PATTERNS_CACHE[cache_key] = (now, result)
+    return result
+

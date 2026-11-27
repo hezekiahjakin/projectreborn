@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reborn-shell-v85';
+const CACHE_NAME = 'reborn-shell-v86';
 const ICON_CACHE_NAME = 'reborn-bungie-icons-v1';
 const SHELL_PRECACHE = [
   '/',

@@ -53,6 +53,7 @@ try:
         inspect_bungie_player_by_bnet_id,
         fetch_live_vendor_radar,
         fetch_recent_activities_pgcr,
+        fetch_craftable_patterns,
     )
 except ImportError:
     from bungie_service import (
@@ -79,6 +80,7 @@ except ImportError:
         inspect_bungie_player_by_bnet_id,
         fetch_live_vendor_radar,
         fetch_recent_activities_pgcr,
+        fetch_craftable_patterns,
     )
 
 try:
@@ -3239,7 +3241,29 @@ async def get_bungie_pgcr_endpoint(req: Request, characterId: str = "", count: i
 
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
-    _invalidate_inv_cache(access_token)
+    return res
+
+
+@app.get("/api/bungie/patterns")
+async def get_bungie_patterns_endpoint(req: Request, force: bool = False):
+    access_token, refresh_token = _extract_bungie_tokens(req)
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not signed in to Bungie.net.")
+
+    refreshed_session = None
+    try:
+        res = await run_in_threadpool(fetch_craftable_patterns, access_token, force)
+    except PermissionError:
+        if refresh_token:
+            refreshed_session = await run_in_threadpool(refresh_bungie_tokens, refresh_token)
+            res = await run_in_threadpool(fetch_craftable_patterns, refreshed_session["access_token"], force)
+        else:
+            raise HTTPException(status_code=401, detail="Bungie session expired. Please sign in again.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if refreshed_session:
+        res["refreshed_session"] = refreshed_session
     return res
 
 

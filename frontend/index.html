@@ -17,10 +17,11 @@
   <link rel="preconnect" href="https://www.bungie.net" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="styles.css?v=20261126_v83">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v85">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v86">
   <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v83">
-  <link rel="modulepreload" href="app.js?v=20261126_v85">
+  <link rel="modulepreload" href="app.js?v=20261126_v86">
   <link rel="modulepreload" href="ghost-nextgen.js?v=20261126_v83">
+  <link rel="modulepreload" href="ghost-pro-suite.js?v=20261126_v86">
 </head>
 <body class="theme-vanguard">
 
@@ -200,6 +201,18 @@
             </button>
             <button type="button" class="ghost-tool-pill" id="btnOpenPgcrDebrief" title="Live Crucible &amp; Raid Post-Game Debrief (PGCR) + Ghost Coaching">
               <span>📊</span><span>Match Debrief</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnToggleFarmingMode" title="Auto-sweep Postmaster items to Vault during long farming sessions">
+              <span>🚜</span><span id="lblFarmingMode">Farming: OFF</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenWeaponCompare" title="Compare 2–4 owned weapons side-by-side with green/red stat &amp; perk diffs">
+              <span>⚖️</span><span>Compare</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenEncounters" title="Voice-guided Raid &amp; Dungeon Encounter Cheat Sheets &amp; Callouts">
+              <span>🗺️</span><span>Encounters</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenPatterns" title="Live Deepsight Red-Border Pattern Progress &amp; Personal Weapon Wishlist">
+              <span>📐</span><span>Patterns</span>
             </button>
           </div>
 
@@ -450,6 +463,9 @@
         </div>
 
         <div class="friends-feedback hidden" id="friendsFeedbackBar"></div>
+
+        <!-- LIVE CLAN FIRETEAM PRESENCE HUB -->
+        <div class="fireteam-presence-strip hidden" id="fireteamPresenceStrip"></div>
 
         <!-- SEARCH RESULTS -->
         <div class="friends-section hidden" id="friendsSearchResultsSection">
@@ -2168,6 +2184,77 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     </div>
   </dialog>
 
+  <!-- MODAL: SIDE-BY-SIDE WEAPON COMPARATOR (STATS & PERK DIFF) -->
+  <dialog class="hud-modal modal-nextgen" id="modalWeaponCompare" closedby="any" aria-labelledby="cmpTitle">
+    <div class="modal-content nextgen-modal-content compare-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ ARMORY TELEMETRY // STAT &amp; PERK DIFF MATRIX</div>
+          <h3 id="cmpTitle">WEAPON COMPARATOR</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalWeaponCompare" aria-label="Close Weapon Comparator">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="cmp-picker-row">
+          <select id="cmpWeaponPicker" class="comms-voice-select" style="flex:1; min-width:180px;" aria-label="Add weapon to compare"></select>
+          <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnCmpAddWeapon">+ Add</button>
+          <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnCmpClear">Clear</button>
+        </div>
+        <div class="cmp-grid" id="cmpGrid"></div>
+      </div>
+      <div class="modal-footer nextgen-modal-footer">
+        <button type="button" class="btn-tactical btn-primary" id="btnCmpAskGhost">❖ Ask Ghost Which Roll Wins</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: VOICE-GUIDED RAID & DUNGEON ENCOUNTER CHEAT SHEETS -->
+  <dialog class="hud-modal modal-nextgen" id="modalEncounters" closedby="any" aria-labelledby="encTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ VANGUARD TACTICAL INTEL // CALLOUTS &amp; VOICE BRIEFINGS</div>
+          <h3 id="encTitle">RAID &amp; DUNGEON ENCOUNTERS</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalEncounters" aria-label="Close Encounters">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="ap-activity-pills" id="encActivityPills"></div>
+        <div class="nextgen-list" id="encBody"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: DEEPSIGHT PATTERN TRACKER & PERSONAL WISHLIST -->
+  <dialog class="hud-modal modal-nextgen" id="modalPatternTracker" closedby="any" aria-labelledby="patTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ ENCLAVE CRAFTING TELEMETRY // RED-BORDERS &amp; WISHLIST</div>
+          <h3 id="patTitle">PATTERNS &amp; WEAPON WISHLIST</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalPatternTracker" aria-label="Close Pattern Tracker">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="ap-activity-pills" id="patTabs">
+          <button type="button" class="inv-pill active" data-pat-tab="progress">🔴 In-Progress Patterns</button>
+          <button type="button" class="inv-pill" data-pat-tab="unlocked">✅ Unlocked Patterns</button>
+          <button type="button" class="inv-pill" data-pat-tab="wishlist">⭐ My Wishlist</button>
+        </div>
+        <div class="vr-toolbar" id="patToolbar">
+          <span class="vr-status" id="patStatus">Ready to scan Enclave Deepsight patterns…</span>
+          <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnPatRefresh">🔄 Refresh</button>
+        </div>
+        <div class="pat-wishlist-form hidden" id="patWishlistForm">
+          <input type="text" id="wlWeaponName" class="input-tactical" placeholder="Weapon name (e.g. Tinasha's Mastery)">
+          <input type="text" id="wlTargetPerks" class="input-tactical" placeholder="Target perks (e.g. Air Trigger + Chill Clip)">
+          <button type="button" class="btn-tactical btn-primary btn-sm" id="btnWlAdd">+ Track</button>
+        </div>
+        <div class="nextgen-list" id="patBody"></div>
+      </div>
+    </div>
+  </dialog>
+
   <script type="importmap">
     {
       "imports": {
@@ -2177,7 +2264,8 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     }
   </script>
   <script type="module" src="reborn-enhancements.js?v=20261126_v83"></script>
-  <script type="module" src="app.js?v=20261126_v85"></script>
+  <script type="module" src="app.js?v=20261126_v86"></script>
   <script type="module" src="ghost-nextgen.js?v=20261126_v83"></script>
+  <script type="module" src="ghost-pro-suite.js?v=20261126_v86"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
-  "name": "R.E.B.O.R.N. // Recon, Engagement & Battlefield Optimization Relay Node",
+  "name": "R.E.B.O.R.N. // Project Reborn Destiny 2 Ghost Companion",
   "short_name": "REBORN",
-  "description": "Recon, Engagement & Battlefield Optimization Relay Node — Futuristic Destiny 2 Ghost AI Assistant",
+  "description": "Futuristic Destiny 2 Ghost AI Assistant, Live Vault Manager, Loadout Optimizer & Voice Comms",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#070A0F",
@@ -17,6 +17,36 @@
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ask Ghost HUD",
+      "short_name": "Ghost HUD",
+      "description": "Launch Full-Screen Hands-Free 3D Ghost Voice Comms",
+      "url": "/?shortcut=hud",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Smart Vault Cleaner",
+      "short_name": "Vault Cleaner",
+      "description": "Audit Vault weapons and prep trash for dismantling",
+      "url": "/?shortcut=cleaner",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Loadout Builder",
+      "short_name": "Loadouts",
+      "description": "Open DIM-Style Tactical Loadout Builder & Stat Optimizer",
+      "url": "/?shortcut=loadouts",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Match Debrief (PGCR)",
+      "short_name": "Debrief",
+      "description": "Review your last 5 Crucible & Raid Post-Game Carnage Reports",
+      "url": "/?shortcut=pgcr",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
