@@ -25,7 +25,7 @@ import {
   Destiny3DStage,
   ICONIC_DESTINY_SHADERS,
   searchManifestShaders
-} from './tgxm-viewer.js?v=20261126_v60';
+} from './tgxm-viewer.js?v=20261126_v82';
 
 // Application State
 const state = {
@@ -1191,9 +1191,23 @@ function updateConstructMood(text) {
 /* ==========================================================================
    MARKDOWN PARSER FOR TACTICAL COMMS
    ========================================================================== */
+function sanitizeGhostMojibake(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/\u00e2\u0080\u0093|\u00e2\u20ac\u201c/g, '–')
+    .replace(/\u00e2\u0080\u0094|\u00e2\u20ac\u201d/g, '—')
+    .replace(/\u00e2\u0080\u0099|\u00e2\u20ac\u2122/g, '’')
+    .replace(/\u00e2\u0080\u0098|\u00e2\u20ac\u02dc/g, '‘')
+    .replace(/\u00e2\u0080\u009c|\u00e2\u20ac\u0153/g, '“')
+    .replace(/\u00e2\u0080\u009d|\u00e2\u20ac[\u009d\u009e]/g, '”')
+    .replace(/\u00e2\u0080\u00a2|\u00e2\u20ac\u00a2/g, '•')
+    .replace(/\u00e2\u0080\u00a6|\u00e2\u20ac\u00a6/g, '…')
+    .replace(/\u00c2\u00a0/g, ' ');
+}
+
 function renderMarkdown(md) {
   if (!md) return '';
-  let html = md
+  let html = sanitizeGhostMojibake(md)
     // Escape basic html
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -11305,6 +11319,17 @@ function init3DGuardianAndInspectTheatre() {
       } finally {
         if (loadingOverlay) loadingOverlay.classList.add('hidden');
       }
+    });
+  });
+
+  document.getElementById('g3dWeaponPoseToggles')?.querySelectorAll('[data-wpn-pose]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sfx.playChirp();
+      const pose = btn.getAttribute('data-wpn-pose') || 'hands';
+      document.querySelectorAll('#g3dWeaponPoseToggles [data-wpn-pose]').forEach(b =>
+        b.classList.toggle('active', b === btn)
+      );
+      guardian3dStage?.setWeaponPoseMode?.(pose);
     });
   });
 

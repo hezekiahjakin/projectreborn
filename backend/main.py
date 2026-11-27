@@ -460,10 +460,11 @@ def stream_gemini_api(prompt_text: str, conversation_history: List[Dict[str, str
                     last_error = f"{model_name} HTTP {resp.status_code}"
                     continue
                 emitted_any = False
-                for raw_line in resp.iter_lines(decode_unicode=True):
+                resp.encoding = "utf-8"
+                for raw_line in resp.iter_lines(decode_unicode=False):
                     if not raw_line:
                         continue
-                    line = raw_line.strip()
+                    line = raw_line.decode("utf-8", errors="replace").strip()
                     if not line.startswith("data:"):
                         continue
                     data_str = line[5:].strip()

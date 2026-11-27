@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="styles.css?v=20261126_v78">
   <link rel="stylesheet" href="reborn-ui.css?v=20261126_v81">
   <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v78">
-  <link rel="modulepreload" href="app.js?v=20261126_v78">
+  <link rel="modulepreload" href="app.js?v=20261126_v82">
   <link rel="modulepreload" href="ghost-nextgen.js?v=20261126_v79">
 </head>
 <body class="theme-vanguard">
@@ -1944,6 +1944,12 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <button type="button" class="g3d-wpn-btn" data-wpn-slot="Heavy">Heavy</button>
             <button type="button" class="g3d-wpn-btn" data-wpn-slot="none">Hide</button>
           </div>
+          <div class="g3d-panel-label" style="margin-top:10px;">WEAPON HOLD POSE</div>
+          <div class="g3d-weapon-toggle-row" id="g3dWeaponPoseToggles">
+            <button type="button" class="g3d-wpn-btn active" data-wpn-pose="hands">In Hands</button>
+            <button type="button" class="g3d-wpn-btn" data-wpn-pose="back">On Back</button>
+            <button type="button" class="g3d-wpn-btn" data-wpn-pose="showcase">Side Float</button>
+          </div>
         </aside>
 
         <!-- CENTER PANEL: 3D WEBGL VIEWPORT -->
@@ -2165,7 +2171,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     }
   </script>
   <script type="module" src="reborn-enhancements.js?v=20261126_v78"></script>
-  <script type="module" src="app.js?v=20261126_v78"></script>
+  <script type="module" src="app.js?v=20261126_v82"></script>
   <script type="module" src="ghost-nextgen.js?v=20261126_v79"></script>
 </body>
 </html>

@@ -888,6 +888,8 @@ export class Destiny3DStage {
     this.controls = null;
     this.rootGroup = null;
     this.weaponGroup = null;
+    this.weaponPoseMode = 'hands'; // 'hands' | 'back' | 'showcase'
+    this._activeWeaponMeta = null;
     this.pedestal = null;
     this.auraRing = null;
     this.rimLight = null;
@@ -1162,11 +1164,115 @@ export class Destiny3DStage {
     return { loaded, failed };
   }
 
+  /** Detect exact 3D left/right hand palm anchors from the loaded Gauntlets mesh. */
+  _detectHandAnchors() {
+    const THREE = this.THREE;
+    const fallback = {
+      right: new THREE.Vector3(-0.23, 0.96, 0.24),
+      left: new THREE.Vector3(0.23, 0.96, 0.24),
+    };
+    const gauntlets = this.slotGroups.get('Gauntlets')?.group;
+    if (!gauntlets) return fallback;
+
+    gauntlets.updateMatrixWorld(true);
+    const v = new THREE.Vector3();
+    const rightPts = [];
+    const leftPts = [];
+
+    gauntlets.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry?.attributes?.position) return;
+      const pos = obj.geometry.attributes.position;
+      const step = Math.max(1, Math.floor(pos.count / 900));
+      for (let i = 0; i < pos.count; i += step) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(obj.matrixWorld);
+        if (v.y < 0.72 || v.y > 1.25) continue;
+        if (v.x < -0.06) rightPts.push(v.clone());
+        else if (v.x > 0.06) leftPts.push(v.clone());
+      }
+    });
+
+    const pickPalm = (pts, fb) => {
+      if (pts.length < 6) return fb;
+      // Hands are the most forward (+Z) and slightly lower vertices of the gauntlets
+      pts.sort((a, b) => (b.z - b.y * 0.35) - (a.z - a.y * 0.35));
+      const top = pts.slice(0, Math.min(28, Math.max(6, Math.floor(pts.length * 0.12))));
+      const avg = new THREE.Vector3();
+      top.forEach((p) => avg.add(p));
+      avg.divideScalar(top.length);
+      return avg;
+    };
+
+    return {
+      right: pickPalm(rightPts, fallback.right),
+      left: pickPalm(leftPts, fallback.left),
+    };
+  }
+
+  _applyWeaponPose(holder, weaponItem, size) {
+    if (!holder || !this.THREE) return;
+    const mode = this.weaponPoseMode || 'hands';
+    const wType = String(weaponItem?.type || weaponItem?.itemTypeDisplayName || weaponItem?.name || '').toLowerCase();
+
+    if (mode === 'showcase') {
+      holder.position.set(-0.44, 1.02, 0.22);
+      holder.rotation.set(0, 0, 0.04);
+      return;
+    }
+
+    if (mode === 'back') {
+      holder.position.set(0.03, 1.28, -0.22);
+      holder.rotation.set(0.14, Math.PI * 0.5, 0.62);
+      return;
+    }
+
+    // Default: 'hands' — snap directly into the Guardian's Gauntlet hand anchors
+    const { right, left } = this._detectHandAnchors();
+    const isOneHanded = /hand cannon|sidearm/.test(wType);
+    const isSword = /sword|glaive/.test(wType);
+    const isBow = /combat bow|\bbow\b/.test(wType);
+    const isRocket = /rocket launcher/.test(wType);
+
+    if (isOneHanded) {
+      // Right-hand grip angled naturally forward
+      holder.position.set(right.x + 0.01, right.y + 0.03, right.z + 0.07);
+      holder.rotation.set(-0.08, 0.16, 0.05);
+    } else if (isSword) {
+      // Right-hand hilt grip angled forward & slightly outward
+      holder.position.set(right.x - 0.02, right.y + 0.04, right.z + 0.08);
+      holder.rotation.set(-0.55, 0.24, -0.18);
+    } else if (isBow) {
+      // Left-hand vertical bow hold
+      holder.position.set(left.x + 0.01, left.y + 0.04, left.z + 0.06);
+      holder.rotation.set(0.10, -0.18, 0.14);
+    } else if (isRocket) {
+      // High right-shoulder / right-hand carry
+      holder.position.set(right.x - 0.03, right.y + 0.34, right.z - 0.02);
+      holder.rotation.set(-0.06, 0.08, 0.02);
+    } else {
+      // Two-handed rifles, shotguns, fusions, SMGs, snipers, LMGs:
+      // Cradle diagonally across BOTH hands (right hand on grip, left hand supporting barrel/foregrip)
+      const midX = (right.x + left.x) * 0.5;
+      const midY = (right.y + left.y) * 0.5 - 0.01;
+      const midZ = Math.max(right.z, left.z) + 0.02;
+      // Rotate ~58 deg across the body so barrel runs from right palm through left palm
+      holder.position.set(midX, midY, midZ);
+      holder.rotation.set(0.12, 1.06, -0.10);
+    }
+  }
+
+  setWeaponPoseMode(mode = 'hands') {
+    this.weaponPoseMode = ['hands', 'back', 'showcase'].includes(mode) ? mode : 'hands';
+    if (this._activeWeaponMeta?.holder) {
+      this._applyWeaponPose(this._activeWeaponMeta.holder, this._activeWeaponMeta.weaponItem, this._activeWeaponMeta.size);
+    }
+  }
+
   async setShowcaseWeapon(weaponItem, prefetched = null) {
     if (!this.THREE || !this.weaponGroup) return false;
     disposeObjectTree(this.weaponGroup);
     while (this.weaponGroup.children.length) this.weaponGroup.remove(this.weaponGroup.children[0]);
     this.slotGroups.delete('weapon');
+    this._activeWeaponMeta = null;
     if (!weaponItem) return false;
 
     const hashes = [weaponItem.overrideStyleItemHash, weaponItem.itemHash, weaponItem.shaderHash].filter(Boolean);
@@ -1177,20 +1283,24 @@ export class Destiny3DStage {
     const { group, usedHash } = await this._buildFromCandidates([weaponItem.overrideStyleItemHash, weaponItem.itemHash], assets, cdn, 0);
     if (!group || this.disposed) return false;
 
-    // Hold beside the Guardian: barrel pointing forward, scaled to a believable size.
+    // Normalize scale & center, then lock directly into the Guardian's hands (or chosen pose).
     const THREE = this.THREE;
     const box = new THREE.Box3().setFromObject(group);
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     const longest = Math.max(size.x, size.y, size.z, 0.01);
-    const scale = longest > 1.4 ? 1.0 / longest : 1.0;
+    const wType = String(weaponItem.type || weaponItem.itemTypeDisplayName || '').toLowerCase();
+    const targetMax = /hand cannon|sidearm/.test(wType) ? 0.36 : (/sword|glaive|bow|rocket/.test(wType) ? 1.12 : 0.88);
+    const scale = longest > targetMax ? targetMax / longest : Math.min(1.0, targetMax / longest);
+
     const holder = new THREE.Group();
     group.position.sub(center);
     holder.add(group);
     holder.scale.setScalar(scale);
-    holder.position.set(-0.42, 1.0, 0.22);
-    holder.rotation.set(0, 0, 0.05);
+    this._applyWeaponPose(holder, weaponItem, size);
     this.weaponGroup.add(holder);
+    this._activeWeaponMeta = { holder, weaponItem, size };
+
     const isExoticWpn = Boolean(weaponItem.isExotic || weaponItem.tierName === 'Exotic' || weaponItem.isExoticWeapon);
     this.slotGroups.set('weapon', { group, itemHash: usedHash, shaderHash: null, isExoticWeapon: isExoticWpn });
 
