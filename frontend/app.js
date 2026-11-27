@@ -449,21 +449,6 @@ class RebornAudioSpeechEngine {
     bus.connect(ringIn);
     ringIn.connect(ringMix);
 
-    // 4. Digital bit-crush grit (quantized waveshaper)
-    const crush = ctx.createWaveShaper();
-    const steps = 18;
-    const curve = new Float32Array(2048);
-    for (let i = 0; i < curve.length; i++) {
-      const x = (i / (curve.length - 1)) * 2 - 1;
-      curve[i] = Math.round(x * steps) / steps;
-    }
-    crush.curve = curve;
-    crush.oversample = 'none';
-    const crushMix = ctx.createGain();
-    crushMix.gain.value = 0.14;
-    bus.connect(crush);
-    crush.connect(crushMix);
-
     // Glue compressor + makeup gain -> analyser (drives the 3D Ghost) -> speakers
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -20;
@@ -478,7 +463,6 @@ class RebornAudioSpeechEngine {
     combA.connect(comp);
     combB.connect(comp);
     ringMix.connect(comp);
-    crushMix.connect(comp);
     comp.connect(makeup);
     makeup.connect(this._analyser);
 
@@ -524,45 +508,21 @@ class RebornAudioSpeechEngine {
           this._activeGlitchSources.push(s);
         } catch (_) {}
       }
-      // Static crackle burst (louder + spans the whole stutter)
-      try {
-        const noiseDur = glitchSpan + 0.02;
-        const len = Math.floor(ctx.sampleRate * noiseDur);
-        const nb = ctx.createBuffer(1, len, ctx.sampleRate);
-        const ch = nb.getChannelData(0);
-        for (let i = 0; i < len; i++) {
-          const env = i < len * 0.85 ? 1 : (1 - (i - len * 0.85) / (len * 0.15));
-          ch[i] = (Math.random() * 2 - 1) * (Math.random() > 0.65 ? 1 : 0.3) * env;
-        }
-        const ns = ctx.createBufferSource();
-        ns.buffer = nb;
-        const bp = ctx.createBiquadFilter();
-        bp.type = 'bandpass';
-        bp.frequency.value = 2900;
-        bp.Q.value = 1.2;
-        const ng = ctx.createGain();
-        ng.gain.value = 0.18;
-        ns.connect(bp);
-        bp.connect(ng);
-        ng.connect(this._analyser);
-        ns.start(at);
-        this._activeGlitchSources.push(ns);
-      } catch (_) {}
-      // Digital telemetry blip on top of each glitch
+      // Glitchy computer telemetry beep on top of each stutter
       try {
         const osc = ctx.createOscillator();
         const og = ctx.createGain();
         osc.type = 'square';
         const f = 1400 + Math.random() * 900;
         osc.frequency.setValueAtTime(f, at);
-        osc.frequency.setValueAtTime(f * 1.4, at + 0.05);
-        osc.frequency.setValueAtTime(f * 0.7, at + 0.1);
-        og.gain.setValueAtTime(0.036, at);
-        og.gain.exponentialRampToValueAtTime(0.0001, at + 0.13);
+        osc.frequency.setValueAtTime(f * 1.4, at + 0.045);
+        osc.frequency.setValueAtTime(f * 0.72, at + 0.09);
+        og.gain.setValueAtTime(0.042, at);
+        og.gain.exponentialRampToValueAtTime(0.0001, at + 0.14);
         osc.connect(og);
         og.connect(this._analyser);
         osc.start(at);
-        osc.stop(at + 0.17);
+        osc.stop(at + 0.15);
         this._activeGlitchSources.push(osc);
       } catch (_) {}
       // Sync 3D Ghost twitch
@@ -575,29 +535,6 @@ class RebornAudioSpeechEngine {
     });
   }
 
-  _playNoiseSquelch(ctx, duration = 0.028, vol = 0.026, centerFreq = 2600) {
-    try {
-      const len = Math.max(64, Math.floor(ctx.sampleRate * duration));
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      const ch = buf.getChannelData(0);
-      for (let i = 0; i < len; i++) {
-        ch[i] = (Math.random() * 2 - 1) * (1 - i / len);
-      }
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = centerFreq;
-      bp.Q.value = 2.4;
-      const g = ctx.createGain();
-      g.gain.value = vol;
-      src.connect(bp);
-      bp.connect(g);
-      g.connect(ctx.destination);
-      src.start();
-    } catch (_) {}
-  }
-
   playCommsTone(mode = 'open') {
     if (!state.soundEnabled || typeof window === 'undefined') return;
     try {
@@ -607,7 +544,6 @@ class RebornAudioSpeechEngine {
 
       if (mode === true || mode === 'open') {
         // Destiny Ghost Crystalline Wake Trill + Comms Squelch
-        this._playNoiseSquelch(ctx, 0.05, 0.055, 2900);
         const freqs = [680, 1020, 1480];
         freqs.forEach((f, idx) => {
           const osc = ctx.createOscillator();
@@ -627,7 +563,6 @@ class RebornAudioSpeechEngine {
         // Mid-Speech Comms Telemetry Blip + Stutter
         state.ghostGlitchPulse = 1.0;
         setTimeout(() => { state.ghostGlitchPulse = 0; }, 210);
-        this._playNoiseSquelch(ctx, 0.1, 0.06, 3200);
         const osc = ctx.createOscillator();
         const g = ctx.createGain();
         osc.type = 'square';
@@ -664,7 +599,6 @@ class RebornAudioSpeechEngine {
         g.connect(ctx.destination);
         osc.start(now);
         osc.stop(now + 0.13);
-        this._playNoiseSquelch(ctx, 0.065, 0.05, 2200);
       }
     } catch (_) {}
   }
@@ -2435,7 +2369,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v75');
+    const mod = await import('./ghost-3d.js?v=20261126_v76');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
