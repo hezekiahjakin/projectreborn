@@ -4254,3 +4254,389 @@ def inspect_bungie_player_by_bnet_id(bnet_membership_id: str) -> dict:
     chosen = next((m for m in destiny_memberships if str(m.get("membershipId") or "") == primary_id), None) or destiny_memberships[0]
     return inspect_bungie_player_loadout(int(chosen["membershipType"]), str(chosen["membershipId"]))
 
+
+# ==============================================================================
+# WEEKLY RESET & VENDOR GOD ROLL RADAR + LIVE PGCR POST-GAME DEBRIEF
+# ==============================================================================
+_VENDOR_RADAR_CACHE: Dict[str, Tuple[float, dict]] = {}
+_VENDOR_CACHE_TTL = 300.0
+
+TRACKED_VENDORS = [
+    (672118013, "Banshee-44", "Gunsmith"),
+    (2190858386, "Xûr", "Agent of the Nine"),
+    (350061650, "Ada-1", "Armor Synthesis"),
+    (69482069, "Commander Zavala", "Vanguard"),
+    (3603221665, "Lord Shaxx", "Crucible"),
+    (765357505, "Saint-14", "Trials of Osiris"),
+]
+
+ACTIVITY_MODE_NAMES = {
+    0: "Destiny 2",
+    2: "Story",
+    3: "Strike",
+    4: "Raid",
+    5: "Crucible",
+    6: "Patrol",
+    10: "Control",
+    12: "Clash",
+    16: "Nightfall",
+    18: "Strikes",
+    19: "Iron Banner",
+    37: "Survival",
+    46: "Nightfall",
+    63: "Gambit",
+    69: "Competitive",
+    82: "Dungeon",
+    84: "Trials of Osiris",
+}
+
+
+def _resolve_active_membership_and_char(access_token: str, api_key: str, character_id: str = "") -> Tuple[int, str, str, str]:
+    m_data = _bungie_get("/User/GetMembershipsForCurrentUser/", api_key, access_token)
+    destiny_memberships = m_data.get("destinyMemberships") or []
+    if not destiny_memberships:
+        raise RuntimeError("No linked Destiny 2 membership found.")
+    primary_id = str(m_data.get("primaryMembershipId") or "")
+    chosen = next((m for m in destiny_memberships if str(m.get("membershipId") or "") == primary_id), None) or destiny_memberships[0]
+    m_type = int(chosen["membershipType"])
+    m_id = str(chosen["membershipId"])
+    display_name = chosen.get("bungieGlobalDisplayName") or chosen.get("displayName") or "Guardian"
+
+    if character_id:
+        return m_type, m_id, str(character_id), display_name
+
+    prof = _bungie_get(f"/Destiny2/{m_type}/Profile/{m_id}/?components=200", api_key, access_token)
+    chars_raw = prof.get("characters", {}).get("data") or {}
+    if not chars_raw:
+        raise RuntimeError("No active Destiny 2 characters found.")
+    sorted_chars = sorted(chars_raw.items(), key=lambda kv: str(kv[1].get("dateLastPlayed") or ""), reverse=True)
+    return m_type, m_id, str(sorted_chars[0][0]), display_name
+
+
+def fetch_live_vendor_radar(access_token: str, god_rolls: List[dict], character_id: str = "", force: bool = False) -> dict:
+    """Scan Banshee-44, Xûr, Ada-1, Zavala, Shaxx, and Saint-14 for God Roll weapons & 63+ high-stat armor."""
+    creds = get_bungie_credentials()
+    api_key = creds["api_key"]
+    if not api_key:
+        raise ValueError("Bungie API key is not configured.")
+
+    m_type, m_id, char_id, _ = _resolve_active_membership_and_char(access_token, api_key, character_id)
+    cache_key = f"{m_type}:{m_id}:{char_id}"
+    now = time.time()
+    if not force and cache_key in _VENDOR_RADAR_CACHE:
+        ts, cached = _VENDOR_RADAR_CACHE[cache_key]
+        if now - ts < _VENDOR_CACHE_TTL:
+            return cached
+
+    raw = _bungie_get(
+        f"/Destiny2/{m_type}/Profile/{m_id}/Character/{char_id}/Vendors/?components=400,402,300,304,305",
+        api_key,
+        access_token,
+    )
+    sales_by_vendor = raw.get("sales", {}).get("data") or {}
+    item_comps = raw.get("itemComponents") or {}
+
+    all_hashes: Set[int] = set()
+    vendor_sale_lists: Dict[int, List[dict]] = {}
+
+    for v_hash, v_name, v_role in TRACKED_VENDORS:
+        v_key = str(v_hash)
+        v_sales = (sales_by_vendor.get(v_key) or {}).get("saleItems") or {}
+        if not v_sales:
+            continue
+        sale_list = []
+        v_sockets = ((item_comps.get(v_key) or {}).get("sockets") or {}).get("data") or {}
+        for sale_key, sale_obj in v_sales.items():
+            ih = int(sale_obj.get("itemHash") or 0)
+            if not ih:
+                continue
+            all_hashes.add(ih)
+            sk_data = (v_sockets.get(str(sale_key)) or {}).get("sockets") or []
+            for sk in sk_data:
+                ph = int(sk.get("plugHash") or 0)
+                if ph and sk.get("isVisible", True):
+                    all_hashes.add(ph)
+            sale_list.append({"saleKey": str(sale_key), "itemHash": ih, "sale": sale_obj})
+        if sale_list:
+            vendor_sale_lists[v_hash] = sale_list
+
+    defs = resolve_item_definitions(all_hashes, api_key) if all_hashes else {}
+
+    vendors_out: List[dict] = []
+    highlights: List[dict] = []
+
+    for v_hash, v_name, v_role in TRACKED_VENDORS:
+        sale_list = vendor_sale_lists.get(v_hash)
+        if not sale_list:
+            continue
+        v_key = str(v_hash)
+        v_sockets = ((item_comps.get(v_key) or {}).get("sockets") or {}).get("data") or {}
+        v_stats = ((item_comps.get(v_key) or {}).get("stats") or {}).get("data") or {}
+
+        weapons_out = []
+        armor_out = []
+
+        for entry in sale_list:
+            ih = entry["itemHash"]
+            sk_key = entry["saleKey"]
+            d = defs.get(ih) or {}
+            dp = d.get("displayProperties") or {}
+            name = dp.get("name") or ""
+            icon = dp.get("icon") or ""
+            bh = int((d.get("inventory") or {}).get("bucketTypeHash") or 0)
+            tier_type = int((d.get("inventory") or {}).get("tierType") or 0)
+            if not name or tier_type < 5:
+                continue
+
+            if bh in WEAPON_BUCKETS:
+                perks = []
+                for sk in ((v_sockets.get(sk_key) or {}).get("sockets") or []):
+                    ph = int(sk.get("plugHash") or 0)
+                    if not ph or not sk.get("isEnabled", True):
+                        continue
+                    pd = defs.get(ph) or {}
+                    p_name = (pd.get("displayProperties") or {}).get("name") or ""
+                    p_cat = str(pd.get("itemTypeDisplayName") or "").lower()
+                    if not p_name or any(skip in p_cat for skip in ("shader", "ornament", "tracker", "memento", "masterwork", "weapon mod", "upgrade")):
+                        continue
+                    if len(perks) < 6 and p_name not in perks:
+                        perks.append(p_name)
+
+                item_stub = {
+                    "name": name,
+                    "slot": WEAPON_BUCKETS[bh],
+                    "type": d.get("itemTypeDisplayName") or "",
+                    "isExotic": tier_type == 6,
+                    "activePerks": perks,
+                    "perkColumns": [[{"name": p, "selected": True} for p in perks]],
+                }
+                gr = evaluate_item_against_godrolls(item_stub, god_rolls)
+                v_code = gr.get("verdict_code") or ""
+                pve_hits = int(gr.get("pve_trait_hits") or 0)
+                pvp_hits = int(gr.get("pvp_trait_hits") or 0)
+                max_hits = max(pve_hits, pvp_hits)
+                is_hot = v_code in ("DUAL_GOD_ROLL", "PVE_GOD_ROLL", "PVP_GOD_ROLL") or max_hits >= 2
+
+                w_rec = {
+                    "vendorName": v_name,
+                    "name": name,
+                    "slot": WEAPON_BUCKETS[bh],
+                    "type": d.get("itemTypeDisplayName") or "",
+                    "icon": icon,
+                    "isExotic": tier_type == 6,
+                    "perks": perks[:5],
+                    "verdictCode": v_code,
+                    "pveHits": pve_hits,
+                    "pvpHits": pvp_hits,
+                    "isHot": is_hot,
+                }
+                weapons_out.append(w_rec)
+                if is_hot or tier_type == 6:
+                    highlights.append({
+                        "kind": "weapon",
+                        "vendorName": v_name,
+                        "name": name,
+                        "icon": icon,
+                        "badge": "★ GOD ROLL" if is_hot else "EXOTIC",
+                        "detail": " • ".join(perks[:4]) or w_rec["type"],
+                    })
+
+            elif bh in ARMOR_BUCKETS:
+                st_raw = (v_stats.get(sk_key) or {}).get("stats") or {}
+                stats_map = {}
+                total_stat = 0
+                max_spike = 0
+                max_spike_label = ""
+                for sh, label in ARMOR_STAT_ORDER:
+                    val = int((st_raw.get(str(sh)) or {}).get("value") or 0)
+                    stats_map[label] = val
+                    total_stat += val
+                    if val > max_spike:
+                        max_spike = val
+                        max_spike_label = label
+
+                is_high_stat = total_stat >= 63 or max_spike >= 20
+                if total_stat > 0:
+                    a_rec = {
+                        "vendorName": v_name,
+                        "name": name,
+                        "slot": ARMOR_BUCKETS[bh],
+                        "icon": icon,
+                        "isExotic": tier_type == 6,
+                        "totalStat": total_stat,
+                        "maxSpike": max_spike,
+                        "maxSpikeLabel": max_spike_label,
+                        "stats": stats_map,
+                        "isHot": is_high_stat,
+                    }
+                    armor_out.append(a_rec)
+                    if is_high_stat:
+                        highlights.append({
+                            "kind": "armor",
+                            "vendorName": v_name,
+                            "name": name,
+                            "icon": icon,
+                            "badge": f"🔥 {total_stat} TOTAL",
+                            "detail": f"{max_spike} {max_spike_label} spike • {ARMOR_BUCKETS[bh]}",
+                        })
+
+        weapons_out.sort(key=lambda x: (1 if x["isHot"] else 0, max(x["pveHits"], x["pvpHits"]), 1 if x["isExotic"] else 0), reverse=True)
+        armor_out.sort(key=lambda x: (x["totalStat"], x["maxSpike"]), reverse=True)
+
+        vendors_out.append({
+            "vendorHash": v_hash,
+            "name": v_name,
+            "role": v_role,
+            "weapons": weapons_out[:12],
+            "armor": armor_out[:8],
+        })
+
+    result = {
+        "updatedAt": int(now),
+        "characterId": char_id,
+        "highlights": highlights[:10],
+        "vendors": vendors_out,
+    }
+    _VENDOR_RADAR_CACHE[cache_key] = (now, result)
+    return result
+
+
+def fetch_recent_activities_pgcr(access_token: str, character_id: str = "", count: int = 5) -> dict:
+    """Fetch last N Destiny 2 activities & full Post-Game Carnage Reports (K/D, precision %, top weapons)."""
+    creds = get_bungie_credentials()
+    api_key = creds["api_key"]
+    if not api_key:
+        raise ValueError("Bungie API key is not configured.")
+
+    m_type, m_id, char_id, display_name = _resolve_active_membership_and_char(access_token, api_key, character_id)
+    count = max(1, min(int(count or 5), 8))
+
+    hist = _bungie_get(
+        f"/Destiny2/{m_type}/Account/{m_id}/Character/{char_id}/Stats/Activities/?count={count}&page=0",
+        api_key,
+        access_token,
+    )
+    activities = hist.get("activities") or []
+    if not activities:
+        return {"characterId": char_id, "playerName": display_name, "matches": []}
+
+    def _fetch_one_pgcr(act: dict) -> Tuple[dict, Optional[dict]]:
+        inst_id = str((act.get("activityDetails") or {}).get("instanceId") or "")
+        if not inst_id:
+            return act, None
+        try:
+            pg = _bungie_get(f"/Destiny2/Stats/PostGameCarnageReport/{inst_id}/", api_key)
+            return act, pg
+        except Exception:
+            return act, None
+
+    fetched: List[Tuple[dict, Optional[dict]]] = []
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futs = [ex.submit(_fetch_one_pgcr, a) for a in activities]
+        for fut in futs:
+            fetched.append(fut.result())
+
+    # Resolve weapon hashes + activity hashes
+    weapon_hashes: Set[int] = set()
+    activity_hashes: Set[int] = set()
+    for act, pg in fetched:
+        ad = act.get("activityDetails") or {}
+        if ad.get("directorActivityHash"):
+            activity_hashes.add(int(ad["directorActivityHash"]))
+        if ad.get("referenceId"):
+            activity_hashes.add(int(ad["referenceId"]))
+        if pg:
+            for ent in (pg.get("entries") or []):
+                p_cid = str(ent.get("characterId") or "")
+                if p_cid == char_id:
+                    for w in ((ent.get("extended") or {}).get("weapons") or []):
+                        if w.get("referenceId"):
+                            weapon_hashes.add(int(w["referenceId"]))
+
+    w_defs = resolve_item_definitions(weapon_hashes, api_key) if weapon_hashes else {}
+
+    # Resolve activity names from manifest SQLite if available
+    act_names: Dict[int, str] = {}
+    if activity_hashes and os.path.exists(MANIFEST_DB_PATH):
+        try:
+            conn = _open_fast_sqlite(MANIFEST_DB_PATH)
+            try:
+                for ah in activity_hashes:
+                    signed = ah - (1 << 32) if ah >= (1 << 31) else ah
+                    row = conn.execute("SELECT json FROM DestinyActivityDefinition WHERE id = ?", (signed,)).fetchone()
+                    if row and row[0]:
+                        obj = json.loads(row[0])
+                        nm = (obj.get("displayProperties") or {}).get("name") or ""
+                        if nm:
+                            act_names[ah] = nm
+            finally:
+                conn.close()
+        except Exception:
+            pass
+
+    matches_out: List[dict] = []
+    for act, pg in fetched:
+        ad = act.get("activityDetails") or {}
+        vals = act.get("values") or {}
+        mode_id = int(ad.get("mode") or 0)
+        mode_name = ACTIVITY_MODE_NAMES.get(mode_id, f"Activity")
+        dir_hash = int(ad.get("directorActivityHash") or ad.get("referenceId") or 0)
+        act_name = act_names.get(dir_hash) or act_names.get(int(ad.get("referenceId") or 0)) or mode_name
+
+        kills = int(((vals.get("kills") or {}).get("basic") or {}).get("value") or 0)
+        deaths = int(((vals.get("deaths") or {}).get("basic") or {}).get("value") or 0)
+        assists = int(((vals.get("assists") or {}).get("basic") or {}).get("value") or 0)
+        kd_val = float(((vals.get("killsDeathsRatio") or {}).get("basic") or {}).get("value") or (kills / max(1, deaths)))
+        completed = int(((vals.get("completed") or {}).get("basic") or {}).get("value") or 0) == 1
+        standing_raw = ((vals.get("standing") or {}).get("basic") or {}).get("displayValue") or ("Cleared" if completed else "Incomplete")
+        duration_sec = int(((vals.get("activityDurationSeconds") or {}).get("basic") or {}).get("value") or 0)
+
+        precision_kills = 0
+        top_weapons: List[dict] = []
+        if pg:
+            for ent in (pg.get("entries") or []):
+                if str(ent.get("characterId") or "") == char_id:
+                    ext = ent.get("extended") or {}
+                    ext_vals = ext.get("values") or {}
+                    precision_kills = int(((ext_vals.get("precisionKills") or {}).get("basic") or {}).get("value") or 0)
+                    for w in (ext.get("weapons") or []):
+                        wh = int(w.get("referenceId") or 0)
+                        wk = int((((w.get("values") or {}).get("uniqueWeaponKills") or {}).get("basic") or {}).get("value") or 0)
+                        wp = int((((w.get("values") or {}).get("uniqueWeaponPrecisionKills") or {}).get("basic") or {}).get("value") or 0)
+                        wd = w_defs.get(wh) or {}
+                        wname = (wd.get("displayProperties") or {}).get("name") or f"Weapon #{wh}"
+                        if wk > 0:
+                            top_weapons.append({
+                                "name": wname,
+                                "kills": wk,
+                                "precisionKills": wp,
+                                "icon": (wd.get("displayProperties") or {}).get("icon") or "",
+                            })
+                    break
+
+        top_weapons.sort(key=lambda x: x["kills"], reverse=True)
+        prec_pct = round((precision_kills / kills) * 100) if kills > 0 else 0
+
+        matches_out.append({
+            "instanceId": str(ad.get("instanceId") or ""),
+            "activityName": act_name,
+            "mode": mode_name,
+            "period": act.get("period") or "",
+            "completed": completed,
+            "standing": standing_raw,
+            "kills": kills,
+            "deaths": deaths,
+            "assists": assists,
+            "kd": round(kd_val, 2),
+            "precisionKills": precision_kills,
+            "precisionPct": prec_pct,
+            "durationSeconds": duration_sec,
+            "topWeapons": top_weapons[:4],
+        })
+
+    return {
+        "characterId": char_id,
+        "playerName": display_name,
+        "matches": matches_out,
+    }
+

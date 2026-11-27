@@ -14,10 +14,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20261126_v77">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v77">
-  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v77">
-  <link rel="modulepreload" href="app.js?v=20261126_v77">
+  <link rel="stylesheet" href="styles.css?v=20261126_v78">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v78">
+  <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v78">
+  <link rel="modulepreload" href="app.js?v=20261126_v78">
+  <link rel="modulepreload" href="ghost-nextgen.js?v=20261126_v78">
 </head>
 <body class="theme-vanguard">
 
@@ -132,7 +133,7 @@
               </div>
               <div class="signin-feat-box highlight">
                 <div class="feat-icon">❖</div>
-                <h4>Ask R.E.B.O.R.N.</h4>
+                <h4>Ask Ghost</h4>
                 <p>Scan your entire Inventory &amp; Vault for PVE and PVP God Rolls and lock them all in one click.</p>
               </div>
             </div>
@@ -157,8 +158,11 @@
                 <button type="button" class="btn-tactical btn-3d-launch btn-sm" id="btnOpenGuardian3DInv" title="Open In-Game 3D Guardian Showcase &amp; Shader Studio">
                   🪩 3D Guardian
                 </button>
-                <button type="button" class="btn-tactical btn-primary btn-sm" id="btnOpenDimLoadoutBuilder" title="Open DIM-Style Tactical Loadout Builder & Equipper">
+                <button type="button" class="btn-tactical btn-primary btn-sm" id="btnOpenDimLoadoutBuilder" title="Open DIM-Style Tactical Loadout Builder &amp; Equipper">
                   🛠️ Loadout Builder
+                </button>
+                <button type="button" class="btn-tactical btn-connect btn-sm" id="btnOpenGhostHudInv" title="Launch Full-Screen Hands-Free Voice Ghost HUD">
+                  🎙️ Ghost HUD
                 </button>
                 <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnRefreshInventory" title="Sync latest gear from Bungie">
                   <span id="refreshSpinIcon">🔄</span> Sync Gear
@@ -177,6 +181,25 @@
 
           <!-- Postmaster Overflow Guard Banner -->
           <div class="postmaster-guard-banner hidden" id="postmasterGuardBanner" role="alert"></div>
+
+          <!-- Weekly Reset & Vendor God Roll Alerts Banner -->
+          <div class="vendor-alerts-banner hidden" id="vendorAlertsBanner" role="status"></div>
+
+          <!-- Next-Gen Ghost Tactical Command Strip -->
+          <div class="ghost-nextgen-bar" id="ghostNextGenBar" role="toolbar" aria-label="Ghost Tactical Tools">
+            <button type="button" class="ghost-tool-pill" id="btnOpenSmartVaultCleaner" title="AI Trash-or-Keep Vault Weapon Auditor &amp; 1-Tap Dismantle Prep">
+              <span>🧹</span><span>Vault Cleaner</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenActivityPrep" title="Live GM / Raid / Dungeon Anti-Champion &amp; Surge Checker">
+              <span>🛡️</span><span>Activity Prep</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenVendorRadar" title="Live Banshee-44, Xûr, Ada-1 &amp; Tower Vendor God Roll Radar">
+              <span>🏪</span><span>Vendor Radar</span>
+            </button>
+            <button type="button" class="ghost-tool-pill" id="btnOpenPgcrDebrief" title="Live Crucible &amp; Raid Post-Game Debrief (PGCR) + Ghost Coaching">
+              <span>📊</span><span>Match Debrief</span>
+            </button>
+          </div>
 
           <!-- Search & Slot Filter Toolbar -->
           <div class="inv-toolbar">
@@ -274,6 +297,29 @@
             </select>
             <button type="button" class="btn-comms-toggle" id="btnCommsAutoSpeak" title="Automatically speak every R.E.B.O.R.N. reply">🔊 Auto-Speak</button>
             <button type="button" class="btn-comms-toggle" id="btnCommsHandsFree" title="Hands-Free Voice Mode: speak -> auto-send -> auto-reply -> auto-listen">🎙️ Hands-Free</button>
+            <button type="button" class="btn-comms-toggle" id="btnCommsFullScreenHud" title="Launch Full-Screen Hands-Free 3D Ghost HUD">🖥️ Full-Screen HUD</button>
+          </div>
+
+          <!-- 3D Ghost Shell & Eye Customizer Strip -->
+          <div class="ghost-customizer-bar" id="ghostCustomizerBar">
+            <span class="ghost-cust-lbl">SHELL:</span>
+            <select id="ghostShellSelect" class="comms-voice-select" aria-label="Ghost 3D Shell Preset">
+              <option value="generalist">Generalist</option>
+              <option value="sagira">Sagira Gold</option>
+              <option value="taken">Taken</option>
+              <option value="trials">Trials Flawless</option>
+              <option value="strand">Strand Weave</option>
+              <option value="stasis">Stasis Crystal</option>
+            </select>
+            <span class="ghost-cust-lbl">EYE:</span>
+            <select id="ghostEyeSelect" class="comms-voice-select" aria-label="Ghost Eye Color">
+              <option value="auto">Auto</option>
+              <option value="cyan">Cyan</option>
+              <option value="gold">Gold</option>
+              <option value="emerald">Emerald</option>
+              <option value="violet">Violet</option>
+              <option value="crimson">Crimson</option>
+            </select>
           </div>
 
           <!-- Messages Stream -->
@@ -313,10 +359,10 @@
 
           <!-- Input Bar -->
           <form class="chat-input-bar" id="chatForm">
-            <button type="button" class="btn-mic" id="btnVoiceInput" title="Speak to R.E.B.O.R.N. (Microphone)">
+            <button type="button" class="btn-mic" id="btnVoiceInput" title="Speak to Ghost (Microphone)">
               <span class="mic-icon">🎙️</span>
             </button>
-            <input type="text" id="chatInput" class="input-chat" placeholder="Ask R.E.B.O.R.N. about builds, catalysts, raid tactics, or weapons..." autocomplete="off">
+            <input type="text" id="chatInput" class="input-chat" placeholder="Ask Ghost about builds, catalysts, raid tactics, or weapons..." autocomplete="off">
             <button type="submit" class="btn-send" id="btnSend">
               <span class="send-text">TRANSMIT</span>
               <span class="send-arrow">➔</span>
@@ -628,7 +674,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
             <h3 class="card-title">✦ BUNGIE.NET INVENTORY &amp; OAUTH ENGINE</h3>
             <span class="badge-cat" id="badgeBungieConfigStatus">CHECKING...</span>
           </div>
-          <p class="card-desc">Powers Clan Guardian sign-in, 3-Character loadout viewing, 700-slot Vault transfers, and live perk reading for <strong>Ask R.E.B.O.R.N.</strong></p>
+          <p class="card-desc">Powers Clan Guardian sign-in, 3-Character loadout viewing, 700-slot Vault transfers, and live perk reading for <strong>Ask Ghost</strong></p>
 
           <div class="form-row">
             <div class="form-group flex-1">
@@ -1572,7 +1618,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="article-content" id="viewWikiContent"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn-tactical btn-secondary" id="btnAskRebornAboutWiki">🗣️ Ask R.E.B.O.R.N. About This</button>
+        <button class="btn-tactical btn-secondary" id="btnAskRebornAboutWiki">🗣️ Ask Ghost About This</button>
         <button class="btn-tactical btn-primary" id="btnDismissViewWiki">Close</button>
       </div>
     </div>
@@ -1770,7 +1816,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
         <div class="saved-loadout-actions">
           <button type="button" class="btn-item-action" id="btnEquipSavedLoadout">⚡ Equip Loadout In-Game</button>
           <button type="button" class="btn-item-action" id="btnImportSavedLoadoutToBuilder">🛠️ Customize in Loadout Builder</button>
-          <button type="button" class="btn-item-action btn-ask-reborn" id="btnAskRebornLoadout">❖ Ask R.E.B.O.R.N. to Review Loadout</button>
+          <button type="button" class="btn-item-action btn-ask-reborn" id="btnAskRebornLoadout">❖ Ask Ghost to Review Loadout</button>
         </div>
         <div class="inspect-transfer-feedback hidden" id="savedLoadoutFeedback"></div>
         <div id="savedLoadoutItemsContainer"></div>
@@ -1959,6 +2005,157 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     </div>
   </dialog>
 
+  <!-- FULL-SCREEN HANDS-FREE "HEY GHOST" VOICE HUD -->
+  <div class="ghost-hud-overlay hidden" id="ghostHandsFreeOverlay" role="dialog" aria-modal="true" aria-label="Hands-Free Ghost Voice HUD">
+    <div class="ghost-hud-topbar">
+      <div class="ghost-hud-brand">
+        <span class="ghost-hud-dot" id="ghostHudStatusDot"></span>
+        <span class="ghost-hud-title">GHOST COMMS // HANDS-FREE</span>
+        <span class="ghost-hud-mood-pill" id="ghostHudMoodPill">STANDBY</span>
+      </div>
+      <div class="ghost-hud-top-actions">
+        <select id="ghostHudShellSelect" class="comms-voice-select" aria-label="HUD Ghost Shell">
+          <option value="generalist">Generalist</option>
+          <option value="sagira">Sagira Gold</option>
+          <option value="taken">Taken</option>
+          <option value="trials">Trials Flawless</option>
+          <option value="strand">Strand Weave</option>
+          <option value="stasis">Stasis Crystal</option>
+        </select>
+        <select id="ghostHudEyeSelect" class="comms-voice-select" aria-label="HUD Ghost Eye Color">
+          <option value="auto">Auto Eye</option>
+          <option value="cyan">Cyan</option>
+          <option value="gold">Gold</option>
+          <option value="emerald">Emerald</option>
+          <option value="violet">Violet</option>
+          <option value="crimson">Crimson</option>
+        </select>
+        <button type="button" class="btn-modal-close" id="btnCloseGhostHud" aria-label="Close Ghost HUD">&times;</button>
+      </div>
+    </div>
+
+    <div class="ghost-hud-stage">
+      <div class="ghost-hud-ring ring-outer" id="ghostHudRingOuter"></div>
+      <div class="ghost-hud-ring ring-inner" id="ghostHudRingInner"></div>
+      <div class="ghost-hud-canvas-host" id="ghostHudCanvasHost"></div>
+    </div>
+
+    <div class="ghost-hud-readout">
+      <div class="ghost-hud-transcript" id="ghostHudTranscript">Tap the mic or enable Continuous Loop and speak to Ghost…</div>
+      <div class="ghost-hud-reply" id="ghostHudReply"></div>
+      <div class="ghost-hud-actions-chips" id="ghostHudQuickChips">
+        <button type="button" class="ghost-hud-chip" data-hud-prompt="Clean my postmaster and pull my safe gear">📬 Pull Postmaster</button>
+        <button type="button" class="ghost-hud-chip" data-hud-prompt="Build me the highest boss DPS loadout out of what I currently own">⚡ Best DPS Loadout</button>
+        <button type="button" class="ghost-hud-chip" data-hud-prompt="Audit my equipped weapons and tell me if I am ready for a Grandmaster Nightfall">🛡️ GM Check</button>
+      </div>
+    </div>
+
+    <div class="ghost-hud-controls">
+      <button type="button" class="ghost-hud-ctrl-btn" id="btnGhostHudLoop" title="Auto-listen again after Ghost finishes speaking">
+        🔁 Auto-Loop: OFF
+      </button>
+      <button type="button" class="ghost-hud-mic-fab" id="btnGhostHudMic" aria-label="Speak to Ghost">
+        <span>🎙️</span>
+      </button>
+      <button type="button" class="ghost-hud-ctrl-btn" id="btnGhostHudStop" title="Stop Ghost speaking">
+        ⏹ Stop Audio
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: SMART VAULT CLEANER ("TRASH OR KEEP" AI AUDITOR) -->
+  <dialog class="hud-modal modal-nextgen" id="modalSmartVaultCleaner" closedby="any" aria-labelledby="svcTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ GHOST VAULT INTELLIGENCE // TRASH OR KEEP</div>
+          <h3 id="svcTitle">SMART VAULT CLEANER</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalSmartVaultCleaner" aria-label="Close Vault Cleaner">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="svc-summary-bar" id="svcSummaryBar">Scanning Vault weapons…</div>
+        <div class="svc-filter-pills" id="svcFilterPills">
+          <button type="button" class="inv-pill active" data-svc-filter="trash">🗑️ Safe to Shard</button>
+          <button type="button" class="inv-pill" data-svc-filter="duplicate">⚠ Duplicates</button>
+          <button type="button" class="inv-pill" data-svc-filter="godroll">★ God Rolls</button>
+          <button type="button" class="inv-pill" data-svc-filter="all">All Vault Weapons</button>
+        </div>
+        <div class="nextgen-list" id="svcList"></div>
+      </div>
+      <div class="modal-footer nextgen-modal-footer">
+        <button type="button" class="btn-tactical btn-secondary" id="btnSvcSelectAllTrash">Select All Safe to Shard</button>
+        <button type="button" class="btn-tactical btn-primary" id="btnSvcMoveTrash">🚀 Move Selected Trash to Character</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: LIVE ACTIVITY PREP & ANTI-CHAMPION CHECKER -->
+  <dialog class="hud-modal modal-nextgen" id="modalActivityPrep" closedby="any" aria-labelledby="apTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ VANGUARD MISSION READINESS // CHAMPION &amp; SURGE AUDIT</div>
+          <h3 id="apTitle">LIVE ACTIVITY PREP</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalActivityPrep" aria-label="Close Activity Prep">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="ap-activity-pills" id="apActivityPills">
+          <button type="button" class="inv-pill active" data-ap-mode="gm">💀 Grandmaster Nightfall</button>
+          <button type="button" class="inv-pill" data-ap-mode="raid">👑 Raid Boss DPS</button>
+          <button type="button" class="inv-pill" data-ap-mode="dungeon">🏰 Dungeon Clear</button>
+          <button type="button" class="inv-pill" data-ap-mode="trials">👁️ Trials / Crucible</button>
+        </div>
+        <div class="ap-results" id="apResults"></div>
+      </div>
+      <div class="modal-footer nextgen-modal-footer">
+        <button type="button" class="btn-tactical btn-secondary" id="btnApAskGhost">❖ Ask Ghost for Full Prep Plan</button>
+        <button type="button" class="btn-tactical btn-primary" data-close-dialog="modalActivityPrep">Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: WEEKLY RESET & VENDOR GOD ROLL RADAR -->
+  <dialog class="hud-modal modal-nextgen" id="modalVendorRadar" closedby="any" aria-labelledby="vrTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ TOWER LIVE TELEMETRY // BANSHEE • XÛR • ADA-1 • ZAVALA</div>
+          <h3 id="vrTitle">WEEKLY VENDOR GOD ROLL RADAR</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalVendorRadar" aria-label="Close Vendor Radar">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="vr-toolbar">
+          <span class="vr-status" id="vrStatus">Ready to scan live Tower &amp; Xûr inventories.</span>
+          <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnVrRefresh">🔄 Refresh Vendors</button>
+        </div>
+        <div class="nextgen-list" id="vrBody"></div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- MODAL: LIVE CRUCIBLE / RAID POST-GAME DEBRIEF (PGCR) -->
+  <dialog class="hud-modal modal-nextgen" id="modalPgcrDebrief" closedby="any" aria-labelledby="pgcrTitle">
+    <div class="modal-content nextgen-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="scanner-eyebrow">❖ POST-GAME CARNAGE REPORT // GHOST PERFORMANCE COACH</div>
+          <h3 id="pgcrTitle">LIVE MATCH &amp; RAID DEBRIEF</h3>
+        </div>
+        <button type="button" class="btn-modal-close" data-close-dialog="modalPgcrDebrief" aria-label="Close Match Debrief">&times;</button>
+      </div>
+      <div class="modal-body nextgen-modal-body">
+        <div class="vr-toolbar">
+          <span class="vr-status" id="pgcrStatus">Loading your last 5 Destiny 2 activities…</span>
+          <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnPgcrRefresh">🔄 Refresh Matches</button>
+        </div>
+        <div class="nextgen-list" id="pgcrBody"></div>
+      </div>
+    </div>
+  </dialog>
+
   <script type="importmap">
     {
       "imports": {
@@ -1967,7 +2164,8 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
       }
     }
   </script>
-  <script type="module" src="reborn-enhancements.js?v=20261126_v77"></script>
-  <script type="module" src="app.js?v=20261126_v77"></script>
+  <script type="module" src="reborn-enhancements.js?v=20261126_v78"></script>
+  <script type="module" src="app.js?v=20261126_v78"></script>
+  <script type="module" src="ghost-nextgen.js?v=20261126_v78"></script>
 </body>
 </html>

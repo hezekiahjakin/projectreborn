@@ -1,4 +1,4 @@
-const CACHE_NAME = 'reborn-shell-v77';
+const CACHE_NAME = 'reborn-shell-v78';
 const SHELL_PRECACHE = [
   '/',
   '/manifest.json',

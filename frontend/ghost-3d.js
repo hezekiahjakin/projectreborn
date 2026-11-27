@@ -1,13 +1,37 @@
 import * as THREE from 'three';
 
 const SHADER_HEX = {
-  stasis:    { accent: 0x2563eb, eye: 0x60a5fa, shell: 0xdbeafe },
-  void:      { accent: 0xa855f7, eye: 0xc084fc, shell: 0xe9d5ff },
-  arc:       { accent: 0x38bdf8, eye: 0x7dd3fc, shell: 0xe2e8f0 },
-  solar:     { accent: 0xf59e0b, eye: 0xfbbf24, shell: 0xfef3c7 },
-  strand:    { accent: 0x10b981, eye: 0x34d399, shell: 0xd1fae5 },
-  prismatic: { accent: 0xe879f9, eye: 0x38bdf8, shell: 0xf1f5f9 },
-  vanguard:  { accent: 0xf5a623, eye: 0x38bdf8, shell: 0xf1f5f9 },
+  stasis:    { accent: 0x2563eb, eye: 0x60a5fa, shell: 0xdbeafe, chassis: 0x161d2b, roughness: 0.34, metalness: 0.25 },
+  void:      { accent: 0xa855f7, eye: 0xc084fc, shell: 0xe9d5ff, chassis: 0x181326, roughness: 0.32, metalness: 0.30 },
+  arc:       { accent: 0x38bdf8, eye: 0x7dd3fc, shell: 0xe2e8f0, chassis: 0x131e2c, roughness: 0.30, metalness: 0.30 },
+  solar:     { accent: 0xf59e0b, eye: 0xfbbf24, shell: 0xfef3c7, chassis: 0x231811, roughness: 0.32, metalness: 0.35 },
+  strand:    { accent: 0x10b981, eye: 0x34d399, shell: 0xd1fae5, chassis: 0x0f221d, roughness: 0.30, metalness: 0.28 },
+  prismatic: { accent: 0xe879f9, eye: 0x38bdf8, shell: 0xf1f5f9, chassis: 0x1a1528, roughness: 0.28, metalness: 0.36 },
+  vanguard:  { accent: 0xf5a623, eye: 0x38bdf8, shell: 0xf1f5f9, chassis: 0x161d2b, roughness: 0.34, metalness: 0.22 },
+};
+
+export const GHOST_SHELL_PRESETS = {
+  generalist: { label: 'Generalist', accent: 0xf5a623, eye: 0x38bdf8, shell: 0xf1f5f9, chassis: 0x161d2b, roughness: 0.34, metalness: 0.24 },
+  sagira:     { label: 'Sagira Gold', accent: 0xf59e0b, eye: 0xfef08a, shell: 0xd97706, chassis: 0x27190d, roughness: 0.20, metalness: 0.78 },
+  taken:      { label: 'Taken', accent: 0x38bdf8, eye: 0xf8fafc, shell: 0x0b1120, chassis: 0x020617, roughness: 0.18, metalness: 0.65 },
+  trials:     { label: 'Trials Flawless', accent: 0xfacc15, eye: 0xfef08a, shell: 0x1c1917, chassis: 0x0c0a09, roughness: 0.22, metalness: 0.82 },
+  strand:     { label: 'Strand Weave', accent: 0x10b981, eye: 0x34d399, shell: 0x064e3b, chassis: 0x022c22, roughness: 0.28, metalness: 0.45 },
+  stasis:     { label: 'Stasis Crystal', accent: 0x3b82f6, eye: 0x93c5fd, shell: 0x1e3a8a, chassis: 0x0f172a, roughness: 0.16, metalness: 0.60 },
+};
+
+export const GHOST_EYE_PRESETS = {
+  auto:    null,
+  cyan:    0x38bdf8,
+  gold:    0xfbbf24,
+  emerald: 0x34d399,
+  violet:  0xc084fc,
+  crimson: 0xf43f5e,
+};
+
+export const GHOST_MOOD_COLORS = {
+  warning:   0xf59e0b,
+  alert:     0xef4444,
+  streaming: 0x38bdf8,
 };
 
 export class DestinyGhost3DAvatar {
@@ -271,11 +295,28 @@ export class DestinyGhost3DAvatar {
     const isListening = Boolean(st.isListening);
     const glitch = Number(st.ghostGlitchPulse || 0);
 
-    // Update subclass/shader palette smoothly
-    const sh = SHADER_HEX[st.shader] || SHADER_HEX[st.subclass] || SHADER_HEX.vanguard;
-    const targetEye = isListening ? 0x10b981 : sh.eye;
-    this.accentMat.color.lerp(new THREE.Color(sh.accent), dt * 4);
-    this.accentMat.emissive.lerp(new THREE.Color(sh.accent), dt * 4);
+    // Update shell preset, eye override & reactive mood smoothly
+    const shellPreset = GHOST_SHELL_PRESETS[st.ghostShell] || null;
+    const sh = shellPreset || SHADER_HEX[st.shader] || SHADER_HEX[st.subclass] || SHADER_HEX.vanguard;
+    const eyeOverride = GHOST_EYE_PRESETS[st.ghostEye] || null;
+    const mood = st.ghostMood || 'normal';
+
+    let targetEye = eyeOverride || sh.eye;
+    if (isListening) targetEye = 0x10b981;
+    else if (mood === 'alert') targetEye = GHOST_MOOD_COLORS.alert;
+    else if (mood === 'warning') targetEye = GHOST_MOOD_COLORS.warning;
+    else if (mood === 'streaming') targetEye = GHOST_MOOD_COLORS.streaming;
+
+    const targetShell = sh.shell || 0xf1f5f9;
+    const targetChassis = sh.chassis || 0x161d2b;
+    const targetAccent = (mood === 'alert') ? 0xef4444 : (mood === 'warning' ? 0xf59e0b : sh.accent);
+
+    this.shellMat.color.lerp(new THREE.Color(targetShell), dt * 4);
+    this.chassisMat.color.lerp(new THREE.Color(targetChassis), dt * 4);
+    if (typeof sh.roughness === 'number') this.shellMat.roughness += (sh.roughness - this.shellMat.roughness) * Math.min(1, dt * 4);
+    if (typeof sh.metalness === 'number') this.shellMat.metalness += (sh.metalness - this.shellMat.metalness) * Math.min(1, dt * 4);
+    this.accentMat.color.lerp(new THREE.Color(targetAccent), dt * 4);
+    this.accentMat.emissive.lerp(new THREE.Color(targetAccent), dt * 4);
     this.eyeMat.color.lerp(new THREE.Color(targetEye), dt * 6);
     this.coreLight.color.lerp(new THREE.Color(targetEye), dt * 6);
     this.holoMat.color.lerp(new THREE.Color(targetEye), dt * 6);

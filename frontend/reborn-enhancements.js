@@ -323,7 +323,7 @@ function mountGodRollAutoFill() {
   btn.type = 'button';
   btn.className = 'btn-tactical btn-secondary reborn-autofill-btn';
   btn.textContent = '🤖 Auto-Fill with R.E.B.O.R.N.';
-  btn.title = 'Ask R.E.B.O.R.N. to populate verified PvE and PvP God Roll perks for this weapon';
+  btn.title = 'Ask Ghost to populate verified PvE and PvP God Roll perks for this weapon';
   nameInput.insertAdjacentElement('afterend', btn);
 
   btn.addEventListener('click', async () => {

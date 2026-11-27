@@ -51,6 +51,8 @@ try:
         perform_bungie_friend_action,
         inspect_bungie_player_loadout,
         inspect_bungie_player_by_bnet_id,
+        fetch_live_vendor_radar,
+        fetch_recent_activities_pgcr,
     )
 except ImportError:
     from bungie_service import (
@@ -75,6 +77,8 @@ except ImportError:
         perform_bungie_friend_action,
         inspect_bungie_player_loadout,
         inspect_bungie_player_by_bnet_id,
+        fetch_live_vendor_radar,
+        fetch_recent_activities_pgcr,
     )
 
 try:
@@ -2639,6 +2643,7 @@ async def post_bungie_transfer_endpoint(body: BungieTransferRequest, req: Reques
     return res
 
 
+
 class BungieLockItemEntry(BaseModel):
     itemInstanceId: str
     characterId: Optional[str] = ""
@@ -2684,6 +2689,7 @@ async def post_bungie_lock_endpoint(body: BungieLockBatchRequest, req: Request):
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
 
 
 class BungieDismantlePrepItem(BaseModel):
@@ -2740,6 +2746,7 @@ async def post_bungie_dismantle_prep_endpoint(body: BungieDismantlePrepRequest, 
     return res
 
 
+
 class BungieEquipLoadoutRequest(BaseModel):
     membershipType: int
     characterId: str
@@ -2776,6 +2783,7 @@ async def post_bungie_equip_loadout_endpoint(body: BungieEquipLoadoutRequest, re
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
 
 
 class BungieCustomLoadoutItem(BaseModel):
@@ -2841,6 +2849,7 @@ async def post_bungie_insert_plug_endpoint(body: BungieInsertSocketPlugRequest, 
     return res
 
 
+
 @app.post("/api/bungie/loadout/equip-custom")
 async def post_bungie_equip_custom_loadout_endpoint(body: BungieEquipCustomLoadoutRequest, req: Request):
     access_token, refresh_token = _extract_bungie_tokens(req)
@@ -2873,6 +2882,7 @@ async def post_bungie_equip_custom_loadout_endpoint(body: BungieEquipCustomLoado
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
 
 
 def _local_item_appraisal_fallback(item: dict, gr_eval: dict) -> str:
@@ -3148,6 +3158,53 @@ async def get_bungie_friends_endpoint(req: Request):
         res["refreshed_session"] = refreshed_session
     return res
 
+@app.get("/api/bungie/vendors")
+async def get_bungie_vendors_endpoint(req: Request, characterId: str = "", force: bool = False):
+    access_token, refresh_token = _extract_bungie_tokens(req)
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not signed in to Bungie.net.")
+
+    god_rolls = get_all_god_rolls()
+    refreshed_session = None
+    try:
+        res = await run_in_threadpool(fetch_live_vendor_radar, access_token, god_rolls, characterId, force)
+    except PermissionError:
+        if refresh_token:
+            refreshed_session = await run_in_threadpool(refresh_bungie_tokens, refresh_token)
+            res = await run_in_threadpool(fetch_live_vendor_radar, refreshed_session["access_token"], god_rolls, characterId, force)
+        else:
+            raise HTTPException(status_code=401, detail="Bungie session expired. Please sign in again.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if refreshed_session:
+        res["refreshed_session"] = refreshed_session
+    return res
+
+
+@app.get("/api/bungie/pgcr")
+async def get_bungie_pgcr_endpoint(req: Request, characterId: str = "", count: int = 5):
+    access_token, refresh_token = _extract_bungie_tokens(req)
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Not signed in to Bungie.net.")
+
+    refreshed_session = None
+    try:
+        res = await run_in_threadpool(fetch_recent_activities_pgcr, access_token, characterId, count)
+    except PermissionError:
+        if refresh_token:
+            refreshed_session = await run_in_threadpool(refresh_bungie_tokens, refresh_token)
+            res = await run_in_threadpool(fetch_recent_activities_pgcr, refreshed_session["access_token"], characterId, count)
+        else:
+            raise HTTPException(status_code=401, detail="Bungie session expired. Please sign in again.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if refreshed_session:
+        res["refreshed_session"] = refreshed_session
+    return res
+
+
 
 @app.post("/api/bungie/friends/search")
 async def search_bungie_players_endpoint(body: BungieFriendSearchRequest):
@@ -3178,6 +3235,7 @@ async def bungie_friend_action_endpoint(body: BungieFriendActionRequest, req: Re
     if refreshed_session:
         res["refreshed_session"] = refreshed_session
     return res
+
 
 
 @app.get("/api/bungie/inspect/{membership_type}/{membership_id}")

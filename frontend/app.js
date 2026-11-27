@@ -41,6 +41,9 @@ const state = {
   handsFreeVoice: false,
   ghostVoiceFx: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_ghost_fx')) !== 'false',
   ghostGlitchPulse: 0,
+  ghostShell: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_ghost_shell')) || 'generalist',
+  ghostEye: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_ghost_eye')) || 'auto',
+  ghostMood: 'normal',
   responseStyle: (typeof localStorage !== 'undefined' && localStorage.getItem('reborn_response_style')) || 'balanced',
   isListening: false,
   activeTtsProvider: 'elevenlabs',
@@ -2369,7 +2372,7 @@ async function ensureGhost3DAvatarRunning() {
   if (ghost3DLoading) return;
   ghost3DLoading = true;
   try {
-    const mod = await import('./ghost-3d.js?v=20261126_v77');
+    const mod = await import('./ghost-3d.js?v=20261126_v78');
     if (mod?.DestinyGhost3DAvatar) {
       ghost3DAvatar = new mod.DestinyGhost3DAvatar(
         wrapper,
@@ -2462,7 +2465,7 @@ function switchTabDirect(tabId) {
     pane.classList.toggle('active', pane.id === tabId);
   });
 
-  if (tabId === 'tab-loadout-builder') {
+  if (tabId === 'tab-loadout-builder' && !state._skipNextLbAutoInit) {
     openLoadoutBuilderModal(activeLoadoutBuilderState || null, false);
   }
   if (tabId === 'tab-friends' && typeof window.__loadBungieFriends === 'function') {
@@ -3985,7 +3988,7 @@ function openItemInspectModal(item) {
         askBtn.type = 'button';
         askBtn.className = 'btn-item-action btn-ask-reborn';
         askBtn.id = 'btnTriggerAskReborn';
-        askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
+        askBtn.innerHTML = `<span>❖</span> Ask Ghost`;
         askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
         actionsGrid.appendChild(askBtn);
       } else {
@@ -4039,7 +4042,7 @@ function openItemInspectModal(item) {
         askBtn.type = 'button';
         askBtn.className = 'btn-item-action btn-ask-reborn';
         askBtn.id = 'btnTriggerAskReborn';
-        askBtn.innerHTML = `<span>❖</span> Ask R.E.B.O.R.N.`;
+        askBtn.innerHTML = `<span>❖</span> Ask Ghost`;
         askBtn.addEventListener('click', () => triggerAskRebornOnItem(item));
         actionsGrid.appendChild(askBtn);
       }
@@ -6760,7 +6763,7 @@ function renderInlineChatLoadoutCard(containerEl, blueprint) {
 }
 
 function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
-  sfx.playChirp();
+  try { sfx.playChirp(); } catch (_) {}
 
   // Close any open overlay modals if the user clicked "Customize in Loadout Builder" from a modal
   ['modalSavedLoadout', 'modalInspectItem', 'modalGodRollScanner'].forEach(mid => {
@@ -6772,12 +6775,24 @@ function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
 
   if (!initialLoadout) {
     const activeChar = getActiveCharacter() || state.bungieData?.characters?.[0];
-    initialLoadout = assembleLoadoutFromBlueprint({
-      title: `${activeChar?.subclass?.element || 'Solar'} ${activeChar?.className || 'Hunter'} // Tactical Loadout`,
-      className: activeChar?.className || 'Hunter',
-      subclass: activeChar?.subclass?.element || 'Solar',
-      mode: 'PVE',
-    });
+    try {
+      initialLoadout = assembleLoadoutFromBlueprint({
+        title: `${activeChar?.subclass?.element || 'Solar'} ${activeChar?.className || 'Hunter'} // Tactical Loadout`,
+        className: activeChar?.className || 'Hunter',
+        subclass: activeChar?.subclass?.element || 'Solar',
+        mode: 'PVE',
+      });
+    } catch (err) {
+      console.warn('[LoadoutBuilder] Fallback blank draft:', err);
+      initialLoadout = {
+        title: `${activeChar?.subclass?.element || 'Solar'} ${activeChar?.className || 'Hunter'} // Tactical Loadout`,
+        className: activeChar?.className || 'Hunter',
+        subclass: activeChar?.subclass?.element || 'Solar',
+        mode: 'PVE',
+        slots: { Kinetic: null, Energy: null, Heavy: null, Helmet: null, Gauntlets: null, 'Chest Armor': null, 'Leg Armor': null, 'Class Armor': null },
+        slotMods: {},
+      };
+    }
   }
 
   if (!initialLoadout.slotMods) initialLoadout.slotMods = {};
@@ -6792,12 +6807,12 @@ function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
   const feedbackEl = document.getElementById('lbFeedbackBanner');
   const pickerDrawer = document.getElementById('lbSlotPickerDrawer');
 
-  if (nameInput) nameInput.value = activeLoadoutBuilderState.title || 'R.E.B.O.R.N. Tactical Build';
+  if (nameInput) nameInput.value = activeLoadoutBuilderState.title || 'Ghost Tactical Build';
   if (classSelect) classSelect.value = activeLoadoutBuilderState.className || 'Hunter';
   if (subclassSelect) subclassSelect.value = activeLoadoutBuilderState.subclass || 'Solar';
   if (modeSelect) modeSelect.value = activeLoadoutBuilderState.mode || 'PVE';
-  populateLbArmorSetSelector(activeLoadoutBuilderState);
-  renderLbSolverCombosStrip(activeLoadoutBuilderState);
+  try { populateLbArmorSetSelector(activeLoadoutBuilderState); } catch (_) {}
+  try { renderLbSolverCombosStrip(activeLoadoutBuilderState); } catch (_) {}
   if (deleteBtn) deleteBtn.classList.toggle('hidden', !activeLoadoutBuilderState.id);
   if (feedbackEl) {
     feedbackEl.classList.add('hidden');
@@ -6806,15 +6821,18 @@ function openLoadoutBuilderModal(initialLoadout = null, switchTabFlag = true) {
   if (pickerDrawer) pickerDrawer.classList.add('hidden');
 
   if (switchTabFlag) {
+    // Switch tab directly without triggering a duplicate openLoadoutBuilderModal call
+    state._skipNextLbAutoInit = true;
     switchTabDirect('tab-loadout-builder');
-  } else {
-    renderLoadoutBuilderWorkspace();
+    state._skipNextLbAutoInit = false;
   }
+  renderLoadoutBuilderWorkspace();
 
   const pagePane = document.getElementById('tab-loadout-builder');
   if (pagePane) {
     pagePane.scrollTop = 0;
   }
+  window.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
 function renderLbPageSavedLoadoutsStrip(draft) {
@@ -7304,7 +7322,7 @@ function renderLoadoutBuilderWorkspace() {
             <button type="button" class="btn-tactical btn-primary btn-sm" id="btnLbOptimizeTargetStats" title="Search all Armor across your Equipped Gear, Character Bags &amp; Vault + auto-assign +10/+5 Armor Stat Mods to hit your Target Stats!">
               🧠 Search Inventory, Vault &amp; Setup to Hit Target Stats
             </button>
-            <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnLbAskAiStatSetup" title="Ask R.E.B.O.R.N. in AI Chat to analyze your Vault &amp; setup for these Target Stats">
+            <button type="button" class="btn-tactical btn-secondary btn-sm" id="btnLbAskAiStatSetup" title="Ask Ghost to analyze your Vault &amp; setup for these Target Stats">
               ❖ Ask AI Advisor
             </button>
           </div>
@@ -12067,6 +12085,17 @@ if (typeof window !== 'undefined') {
   window.__toggleGhostCommsDrawer = toggleGhostCommsDrawer;
   window.__openGhostCommsDrawer = openGhostCommsDrawer;
   window.__closeGhostCommsDrawer = closeGhostCommsDrawer;
+  window.__ghostShowToast = showToast;
+  window.__ghostSfx = sfx;
+  window.__ghostRefreshInventory = (force = true) => loadBungieInventory(force);
+  window.__ghostSendPrompt = (promptText, openDrawer = true) => {
+    if (!promptText) return;
+    if (openDrawer) openGhostCommsDrawer();
+    const input = document.getElementById('chatInput');
+    if (input) input.value = promptText;
+    return sendChatMessage(promptText);
+  };
+  window.__ghostExecuteAction = (action) => executeGhostAction(action);
 
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btnCloseGhostDrawer')?.addEventListener('click', () => {
