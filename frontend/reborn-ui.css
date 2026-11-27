@@ -2286,31 +2286,39 @@ dialog.hud-modal .modal-footer {
 
 #tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar {
   display: flex !important;
-  flex-wrap: nowrap !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
+  overflow: visible !important;
   flex-shrink: 0 !important;
-  gap: 6px !important;
-  padding: 7px 10px !important;
-  min-height: 44px !important;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
+  gap: 5px !important;
+  padding: 6px 10px !important;
+  min-height: 0 !important;
 }
 
-#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar::-webkit-scrollbar {
-  display: none;
-}
-
-#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar > * {
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar > *,
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .ghost-customizer-bar > * {
   flex: 0 0 auto !important;
   white-space: nowrap !important;
 }
 
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar .btn-comms-toggle,
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar .comms-voice-select,
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .comms-voice-bar .comms-voice-status-badge,
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .ghost-customizer-bar .btn-comms-toggle,
+#tab-comms.ghost-comms-drawer.ghost-drawer-open .ghost-customizer-bar .comms-voice-select {
+  padding: 4px 9px !important;
+  font-size: 11.5px !important;
+  min-height: 30px !important;
+}
+
 #tab-comms.ghost-comms-drawer.ghost-drawer-open .ghost-customizer-bar {
+  display: flex !important;
   flex-shrink: 0 !important;
-  flex-wrap: nowrap !important;
-  min-height: 38px !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  overflow: visible !important;
+  gap: 5px !important;
+  min-height: 0 !important;
   padding: 5px 10px !important;
 }
 

@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20261126_v78">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v80">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v81">
   <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v78">
   <link rel="modulepreload" href="app.js?v=20261126_v78">
   <link rel="modulepreload" href="ghost-nextgen.js?v=20261126_v79">
@@ -295,12 +295,10 @@
               <option value="concise">⚡ Concise Callouts</option>
               <option value="deep">📖 Deep Telemetry</option>
             </select>
-            <button type="button" class="btn-comms-toggle" id="btnCommsAutoSpeak" title="Automatically speak every R.E.B.O.R.N. reply">🔊 Auto-Speak</button>
-            <button type="button" class="btn-comms-toggle" id="btnCommsHandsFree" title="Hands-Free Voice Mode: speak -> auto-send -> auto-reply -> auto-listen">🎙️ Hands-Free</button>
-            <button type="button" class="btn-comms-toggle" id="btnCommsFullScreenHud" title="Launch Full-Screen Hands-Free 3D Ghost HUD">🖥️ Full-Screen HUD</button>
+            <button type="button" class="btn-comms-toggle" id="btnCommsAutoSpeak" title="Automatically speak every Ghost reply">🔊 Auto-Speak</button>
           </div>
 
-          <!-- 3D Ghost Shell & Eye Customizer Strip -->
+          <!-- 3D Ghost Shell, Eye & Hands-Free HUD Strip -->
           <div class="ghost-customizer-bar" id="ghostCustomizerBar">
             <span class="ghost-cust-lbl">SHELL:</span>
             <select id="ghostShellSelect" class="comms-voice-select" aria-label="Ghost 3D Shell Preset">
@@ -320,6 +318,8 @@
               <option value="violet">Violet</option>
               <option value="crimson">Crimson</option>
             </select>
+            <button type="button" class="btn-comms-toggle" id="btnCommsHandsFree" title="Hands-Free Voice Mode: speak -> auto-send -> auto-reply -> auto-listen">🎙️ Hands-Free</button>
+            <button type="button" class="btn-comms-toggle" id="btnCommsFullScreenHud" title="Launch Full-Screen Hands-Free 3D Ghost HUD">🖥️ Full-Screen HUD</button>
           </div>
 
           <!-- Messages Stream -->
