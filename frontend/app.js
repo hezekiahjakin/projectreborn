@@ -2819,6 +2819,29 @@ function classGlyph(className) {
   return '❖';
 }
 
+function elementGlyph(element) {
+  const e = (element || '').toLowerCase();
+  if (e.includes('solar')) {
+    return `<svg class="destiny-elem-icon is-solar" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12.6 2c.4 3.4-1.6 5.2-3 6.8C8 10.6 7 12.2 7 14.4 7 17.8 9.4 21 12.5 22c-1.2-1.8-.8-3.8.6-5.2 1.1-1.1 1.7-2.4 1.6-4.1 1.6 1.5 2.4 3.3 2.3 5.2 1.8-1.4 2.7-3.4 2.4-6-.4-3.2-2.6-5.7-4.5-7.4-.5 1.3-1.2 2.1-2.3 2.5.4-1.9.4-3.6 0-5z"/></svg>`;
+  }
+  if (e.includes('arc')) {
+    return `<svg class="destiny-elem-icon is-arc" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.8 2 5 13.4h6.1L9.8 22l9.2-11.8h-6.2L13.8 2z"/></svg>`;
+  }
+  if (e.includes('void')) {
+    return `<svg class="destiny-elem-icon is-void" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2.5C6.8 2.5 2.5 6.8 2.5 12S6.8 21.5 12 21.5s9.5-4.3 9.5-9.5S17.2 2.5 12 2.5zm0 3.2c3.5 0 6.3 2.8 6.3 6.3 0 2.5-1.5 4.7-3.7 5.7.9-1.2 1.4-2.6 1.2-4.2-.3-2.5-2.5-4.3-5-4-1.5.2-2.7 1-3.4 2.1.2-3.3 2.4-5.9 4.6-5.9z"/></svg>`;
+  }
+  if (e.includes('stasis')) {
+    return `<svg class="destiny-elem-icon is-stasis" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 9.4 7.6 3.5 6.5l3.8 5.5-3.8 5.5 5.9-1.1L12 22l2.6-5.6 5.9 1.1-3.8-5.5 3.8-5.5-5.9 1.1L12 2zm0 6.2L14.8 12 12 15.8 9.2 12 12 8.2z"/></svg>`;
+  }
+  if (e.includes('strand')) {
+    return `<svg class="destiny-elem-icon is-strand" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 6.5c4.5-2.8 11.5-2.8 16 0l-1.6 2.4c-3.5-2-9.3-2-12.8 0L4 6.5zm1.5 5.2c4-2.4 9-2.4 13 0l-1.5 2.3c-3-1.8-7-1.8-10 0l-1.5-2.3zm2 5.1c3-1.7 6-1.7 9 0L15 19c-2-1-4-1-6 0l-1.5-2.2z"/></svg>`;
+  }
+  if (e.includes('prismatic')) {
+    return `<svg class="destiny-elem-icon is-prismatic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2 3 12l9 10 9-10L12 2zm0 4.3L17.1 12 12 17.7 6.9 12 12 6.3z"/></svg>`;
+  }
+  return `<svg class="destiny-elem-icon is-kinetic" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3 4 12l8 9 8-9-8-9zm0 4.8L15.8 12 12 16.2 8.2 12 12 7.8z"/></svg>`;
+}
+
 function loadSavedBungieSession() {
   // Check URL hash bounce (#bungie_session=...) from cross-origin OAuth callback
   if (window.location.hash && window.location.hash.startsWith('#bungie_session=')) {
@@ -3568,13 +3591,20 @@ function createGearCardElement(item, { isEquippedCard = false, deferOffscreen = 
   btn.type = 'button';
   const tierCls = item.isExotic ? 'tier-exotic' : (item.category === 'Artifact' ? 'tier-artifact' : 'tier-legendary');
   const mwCls = item.isMasterworked ? 'is-masterworked' : '';
+  const craftedCls = item.isCrafted ? 'is-crafted' : '';
+  const adeptCls = /\((adept|timelost|harrowed)\)/i.test(item.name || '') ? 'is-adept' : '';
   const eqCls = isEquippedCard ? 'equipped-card' : '';
   const defCls = deferOffscreen ? 'vault-item-deferred' : '';
-  btn.className = `gear-card ${tierCls} ${mwCls} ${eqCls} ${defCls}`.trim();
+  const vcRaw = item.godRollCheck?.verdictCode || '';
+  const grCls = ['DUAL_GOD_ROLL', 'PVE_GOD_ROLL', 'PVP_GOD_ROLL'].includes(vcRaw) ? 'is-godroll-card' : '';
+  btn.className = `gear-card ${tierCls} ${mwCls} ${craftedCls} ${adeptCls} ${grCls} ${eqCls} ${defCls}`.trim();
+  if (item.category === 'Weapon' && item.element) {
+    btn.dataset.elem = String(item.element).toLowerCase();
+  }
 
   const iconSrc = item.icon ? `https://www.bungie.net${item.icon}` : 'icon-192.png';
   const elemDot = item.category === 'Weapon'
-    ? `<span class="elem-dot ${escapeHtml(item.element)}"></span>`
+    ? `<span class="elem-glyph-wrap" title="${escapeHtml(item.element)}">${elementGlyph(item.element)}</span>`
     : (item.category === 'Artifact' ? `<span class="elem-dot Artifact"></span>` : '');
 
   const grc = item.godRollCheck || {};
@@ -3669,16 +3699,49 @@ function renderInventoryStage() {
     return;
   }
 
-  // 1. Modern 0-200 6-Stat Ribbon for Active Character
+  // 0. Compact Guardian Power, Artifact & Postmaster Mini-HUD
+  const pmCount = (ch.postmaster || []).length;
+  const pmPct = Math.min(100, Math.round((pmCount / 21) * 100));
+  const pmState = pmCount >= 18 ? 'is-crit' : pmCount >= 15 ? 'is-warn' : 'is-ok';
+  const artIcon = ch.artifact?.icon ? `https://www.bungie.net${ch.artifact.icon}` : '';
+  const miniHud = document.createElement('div');
+  miniHud.className = 'guardian-mini-hud';
+  miniHud.innerHTML = `
+    <div class="gmh-left">
+      <span class="gmh-class">${classGlyph(ch.className)} ${escapeHtml(ch.className)}</span>
+      <span class="gmh-power">✦ ${ch.light || 0}</span>
+      <span class="gmh-sub">${elementGlyph(ch.subclass?.element || '')} ${escapeHtml(ch.subclass?.name || 'Subclass')}</span>
+    </div>
+    <div class="gmh-right">
+      ${artIcon ? `<span class="gmh-art" title="${escapeHtml(ch.artifact?.name || 'Artifact')}"><img src="${artIcon}" alt="">+${ch.artifact?.powerBonus || 0}</span>` : ''}
+      <span class="gmh-pm ${pmState}" title="Postmaster fill (${pmCount}/21)">
+        <span class="gmh-pm-lbl">📬 ${pmCount}/21</span>
+        <span class="gmh-pm-bar"><span style="width:${pmPct}%"></span></span>
+      </span>
+    </div>
+  `;
+  stage.appendChild(miniHud);
+
+  // 1. Modern 0-200 6-Stat Destiny Character Screen Ribbon with Segmented Tier Bars
   const statEntries = Object.entries(ch.stats || {});
   if (statEntries.length > 0) {
     const ribbon = document.createElement('div');
-    ribbon.className = 'char-stats-ribbon';
-    ribbon.innerHTML = `<span style="font-family:var(--font-display); font-size:12px; color:var(--vanguard-amber); font-weight:700; margin-right:4px;">${classGlyph(ch.className)} ${escapeHtml(ch.className.toUpperCase())} STATS (0–200):</span>`;
+    ribbon.className = 'char-stats-ribbon d2-stat-bars';
     statEntries.forEach(([sName, sVal]) => {
+      const val = Number(sVal) || 0;
+      const pct = Math.min(100, Math.round((val / 200) * 100));
+      const tierCls = val >= 150 ? 'tier-mw' : val >= 100 ? 'tier-gold' : val === 0 ? 'tier-zero' : '';
+      const waste = val > 0 && val < 200 ? (val % 10) : 0;
       const chip = document.createElement('div');
-      chip.className = `char-stat-chip ${sVal >= 100 ? 'high-stat' : ''}`;
-      chip.innerHTML = `<span class="s-lbl">${escapeHtml(sName)}:</span><span class="s-val">${sVal}</span>`;
+      chip.className = `d2-stat-tile ${tierCls}`;
+      chip.title = `${sName}: ${val}/200${waste ? ` (${waste} wasted over tier)` : ''}`;
+      chip.innerHTML = `
+        <div class="d2-stat-top">
+          <span class="d2-stat-lbl">${escapeHtml(sName)}</span>
+          <span class="d2-stat-val">${val}</span>
+        </div>
+        <div class="d2-stat-track"><span class="d2-stat-fill" style="width:${pct}%"></span></div>
+      `;
       ribbon.appendChild(chip);
     });
     stage.appendChild(ribbon);
@@ -3938,7 +4001,7 @@ function openItemInspectModal(item) {
       if (item.category === 'Artifact') {
         elemBadge.textContent = 'ARTIFACT';
       } else if (item.category === 'Weapon') {
-        elemBadge.textContent = item.element;
+        elemBadge.innerHTML = `${elementGlyph(item.element)} ${escapeHtml(item.element)}`;
       } else {
         elemBadge.textContent = `${item.classRestriction !== 'Any' ? item.classRestriction + ' ' : ''}Armor`;
       }
@@ -4128,15 +4191,28 @@ function openItemInspectModal(item) {
       } else if ((item.perkColumns || []).length === 0) {
         perkColsEl.innerHTML = `<div style="color:#64748B; font-size:13px;">Standard / Intrinsic Configuration</div>`;
       } else {
-        item.perkColumns.forEach(col => {
+        const grMatchNames = new Set([
+          ...((item.godRollCheck?.pveMatches || []).map(x => String(x).toLowerCase())),
+          ...((item.godRollCheck?.pvpMatches || []).map(x => String(x).toLowerCase())),
+        ]);
+        const colLabels = ['Barrel', 'Mag', 'Trait 1', 'Trait 2', 'Origin'];
+        perkColsEl.classList.add('d2-perk-matrix');
+        item.perkColumns.forEach((col, cIdx) => {
           const stack = document.createElement('div');
-          stack.className = 'perk-col-stack';
+          stack.className = 'perk-col-stack d2-perk-col';
+          const lbl = document.createElement('div');
+          lbl.className = 'd2-perk-col-lbl';
+          lbl.textContent = colLabels[cIdx] || `Col ${cIdx + 1}`;
+          stack.appendChild(lbl);
           col.forEach(opt => {
+            const isGrMatch = grMatchNames.has(String(opt.name || '').toLowerCase());
             const chip = document.createElement('div');
-            chip.className = `perk-chip ${opt.selected ? 'active' : ''}`;
-            chip.title = opt.description || opt.name;
-            const pImg = opt.icon ? `<img src="https://www.bungie.net${opt.icon}" alt="">` : '';
-            chip.innerHTML = `${pImg}<span>${escapeHtml(opt.name)}</span>`;
+            chip.className = `perk-chip d2-perk-node ${opt.selected ? 'active' : ''} ${isGrMatch ? 'is-godroll-perk' : ''}`;
+            chip.title = `${opt.name}${isGrMatch ? ' ★ (God Roll Target)' : ''}${opt.description ? ' — ' + opt.description : ''}`;
+            const pImg = opt.icon
+              ? `<span class="d2-perk-circle"><img src="https://www.bungie.net${opt.icon}" alt=""></span>`
+              : `<span class="d2-perk-circle d2-perk-fallback">❖</span>`;
+            chip.innerHTML = `${pImg}<span class="d2-perk-name">${escapeHtml(opt.name)}</span>`;
             stack.appendChild(chip);
           });
           perkColsEl.appendChild(stack);

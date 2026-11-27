@@ -17,9 +17,9 @@
   <link rel="preconnect" href="https://www.bungie.net" crossorigin>
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="stylesheet" href="styles.css?v=20261126_v83">
-  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v84">
+  <link rel="stylesheet" href="reborn-ui.css?v=20261126_v85">
   <link rel="modulepreload" href="reborn-enhancements.js?v=20261126_v83">
-  <link rel="modulepreload" href="app.js?v=20261126_v84">
+  <link rel="modulepreload" href="app.js?v=20261126_v85">
   <link rel="modulepreload" href="ghost-nextgen.js?v=20261126_v83">
 </head>
 <body class="theme-vanguard">
@@ -242,7 +242,11 @@
 
           <!-- Loading Skeleton / Status -->
           <div class="inv-loading-state hidden" id="invLoadingState">
-            <div class="inv-spinner"></div>
+            <div class="inv-skeleton-grid" aria-hidden="true">
+              <div class="inv-skel-card"></div><div class="inv-skel-card"></div>
+              <div class="inv-skel-card"></div><div class="inv-skel-card"></div>
+              <div class="inv-skel-card"></div><div class="inv-skel-card"></div>
+            </div>
             <p id="invLoadingText">Synchronizing Guardian Telemetry &amp; Manifest...</p>
           </div>
 
@@ -2173,7 +2177,7 @@ npx -y firebase-tools@latest deploy --only firestore:rules,auth --project ping-v
     }
   </script>
   <script type="module" src="reborn-enhancements.js?v=20261126_v83"></script>
-  <script type="module" src="app.js?v=20261126_v84"></script>
+  <script type="module" src="app.js?v=20261126_v85"></script>
   <script type="module" src="ghost-nextgen.js?v=20261126_v83"></script>
 </body>
 </html>

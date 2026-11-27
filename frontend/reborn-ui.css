@@ -2432,3 +2432,318 @@ dialog.hud-modal .modal-footer {
   align-items: center;
   gap: 5px;
 }
+
+
+/* ==========================================================================
+   DESTINY 2 UI POLISH BATCH (v85):
+   1. Elemental SVGs   2. Segmented Stat Bars   3. Tactile Gear Cards
+   4. Shimmer Skeletons & Smooth Transitions   5. Mini-HUD   6. Circular Perks
+   ========================================================================== */
+
+/* 1. Authentic Destiny 2 Elemental SVG Icons */
+.destiny-elem-icon {
+  display: inline-block;
+  width: 1.05em;
+  height: 1.05em;
+  vertical-align: -0.16em;
+  flex-shrink: 0;
+}
+.destiny-elem-icon.is-solar { color: #f97316; filter: drop-shadow(0 0 4px rgba(249, 115, 22, 0.55)); }
+.destiny-elem-icon.is-arc { color: #38bdf8; filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.55)); }
+.destiny-elem-icon.is-void { color: #a855f7; filter: drop-shadow(0 0 4px rgba(168, 85, 247, 0.55)); }
+.destiny-elem-icon.is-stasis { color: #60a5fa; filter: drop-shadow(0 0 4px rgba(96, 165, 250, 0.55)); }
+.destiny-elem-icon.is-strand { color: #10b981; filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.55)); }
+.destiny-elem-icon.is-prismatic { color: #e879f9; filter: drop-shadow(0 0 5px rgba(232, 121, 249, 0.65)); }
+.destiny-elem-icon.is-kinetic { color: #e2e8f0; }
+.elem-glyph-wrap { display: inline-flex; align-items: center; margin-right: 2px; }
+
+/* 5. Compact Guardian Power, Artifact & Postmaster Mini-HUD */
+.guardian-mini-hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(16, 24, 40, 0.92), rgba(9, 14, 26, 0.94));
+  border: 1px solid rgba(56, 189, 248, 0.22);
+}
+.gmh-left,
+.gmh-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gmh-class {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #f8fafc;
+}
+.gmh-power {
+  font-weight: 800;
+  font-size: 13px;
+  color: #fde047;
+  text-shadow: 0 0 8px rgba(250, 204, 21, 0.35);
+}
+.gmh-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+}
+.gmh-art {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c084fc;
+}
+.gmh-art img {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+.gmh-pm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+.gmh-pm.is-warn { color: #fbbf24; }
+.gmh-pm.is-crit { color: #f87171; }
+.gmh-pm-bar {
+  width: 48px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.gmh-pm-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #38bdf8;
+}
+.gmh-pm.is-warn .gmh-pm-bar > span { background: #f59e0b; }
+.gmh-pm.is-crit .gmh-pm-bar > span { background: #ef4444; }
+
+/* 2. Destiny 2 Character Screen Segmented Stat Bars */
+.char-stats-ribbon.d2-stat-bars {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  padding: 8px !important;
+  margin-bottom: 10px !important;
+  border-radius: 11px;
+  background: rgba(10, 16, 28, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+@media (min-width: 768px) {
+  .char-stats-ribbon.d2-stat-bars {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+}
+.d2-stat-tile {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+.d2-stat-tile.tier-gold {
+  border-color: rgba(250, 204, 21, 0.42);
+  background: rgba(250, 204, 21, 0.07);
+}
+.d2-stat-tile.tier-mw {
+  border-color: rgba(245, 166, 35, 0.72);
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.14), rgba(250, 204, 21, 0.06));
+  box-shadow: 0 0 12px rgba(245, 166, 35, 0.18);
+}
+.d2-stat-tile.tier-zero { opacity: 0.58; }
+.d2-stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.d2-stat-lbl {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #94a3b8;
+}
+.d2-stat-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.d2-stat-tile.tier-gold .d2-stat-val { color: #fde047; }
+.d2-stat-tile.tier-mw .d2-stat-val { color: #fbbf24; }
+.d2-stat-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+}
+.d2-stat-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  transition: width 0.35s ease;
+}
+.d2-stat-tile.tier-gold .d2-stat-fill { background: linear-gradient(90deg, #eab308, #fde047); }
+.d2-stat-tile.tier-mw .d2-stat-fill { background: linear-gradient(90deg, #f59e0b, #fef08a); }
+
+/* 3. Tactile Gear Cards (Masterwork, Crafted, Adept & God Roll Polish) */
+.gear-card {
+  transition: transform 0.14s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+.gear-card:active {
+  transform: scale(0.985);
+}
+.gear-card.is-masterworked .gear-icon-frame {
+  box-shadow: 0 0 0 2px #f5a623, 0 0 10px rgba(245, 166, 35, 0.38) !important;
+}
+.gear-card.is-crafted .gear-icon-frame {
+  box-shadow: 0 0 0 2px #ef4444, 0 0 10px rgba(239, 68, 68, 0.38) !important;
+}
+.gear-card.is-adept {
+  background-image: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.0) 55%, rgba(245, 166, 35, 0.08) 100%) !important;
+}
+.gear-card.is-godroll-card {
+  border-color: rgba(250, 204, 21, 0.48) !important;
+}
+.gear-card.equipped-card[data-elem="solar"] { border-left: 3px solid #f97316 !important; }
+.gear-card.equipped-card[data-elem="arc"] { border-left: 3px solid #38bdf8 !important; }
+.gear-card.equipped-card[data-elem="void"] { border-left: 3px solid #a855f7 !important; }
+.gear-card.equipped-card[data-elem="stasis"] { border-left: 3px solid #60a5fa !important; }
+.gear-card.equipped-card[data-elem="strand"] { border-left: 3px solid #10b981 !important; }
+
+/* 6. Destiny 2 Circular Perk Column Matrix (Inspect Modal) */
+.d2-perk-matrix {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)) !important;
+  gap: 8px !important;
+  align-items: start !important;
+}
+.d2-perk-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  padding: 6px !important;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+.d2-perk-col-lbl {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: #64748b;
+  text-align: center;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.d2-perk-node {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  gap: 4px !important;
+  padding: 6px 4px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+.d2-perk-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.92);
+  border: 2px solid rgba(148, 163, 184, 0.35);
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.d2-perk-circle img {
+  width: 28px !important;
+  height: 28px !important;
+  object-fit: contain;
+}
+.d2-perk-node.active .d2-perk-circle {
+  background: rgba(14, 116, 144, 0.45);
+  border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.55);
+}
+.d2-perk-node.is-godroll-perk .d2-perk-circle {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(251, 191, 36, 0.65) !important;
+}
+.d2-perk-name {
+  font-size: 10.5px;
+  line-height: 1.2;
+  color: #94a3b8;
+}
+.d2-perk-node.active .d2-perk-name {
+  color: #f8fafc;
+  font-weight: 700;
+}
+.d2-perk-node.is-godroll-perk .d2-perk-name {
+  color: #fde68a;
+}
+
+/* 4. Shimmering Gear Skeletons & Smooth Native App Transitions */
+@keyframes d2Shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.inv-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.inv-skel-card {
+  height: 68px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.55) 25%, rgba(56, 189, 248, 0.14) 50%, rgba(30, 41, 59, 0.55) 75%);
+  background-size: 200% 100%;
+  animation: d2Shimmer 1.35s infinite linear;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+@keyframes d2TabEnter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tab-pane.active:not(#tab-comms) {
+  animation: d2TabEnter 0.18s ease-out;
+}
+
+@keyframes d2SheetUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 767.98px) {
+  dialog.hud-modal[open] .modal-content,
+  dialog.hud-modal[open] .modal-card {
+    animation: d2SheetUp 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
