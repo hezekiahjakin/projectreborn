@@ -27,6 +27,33 @@ function getBungieHeaders() {
   };
 }
 
+function getVaultItems(bData) {
+  if (!bData) return [];
+  if (Array.isArray(bData.vault)) return bData.vault;
+  if (Array.isArray(bData.vault?.items)) return bData.vault.items;
+  return [];
+}
+
+function getCharEquipped(c) {
+  if (!c) return [];
+  if (Array.isArray(c.equipment)) return c.equipment;
+  if (Array.isArray(c.equipped)) return c.equipped;
+  return [];
+}
+
+function getCharInventory(c) {
+  if (!c) return [];
+  return Array.isArray(c.inventory) ? c.inventory : [];
+}
+
+function isWeaponItem(it) {
+  return Boolean(it && (it.category === 'Weapon' || ['Kinetic', 'Energy', 'Heavy'].includes(it.slot)));
+}
+
+function isArmorItem(it) {
+  return Boolean(it && (it.category === 'Armor' || ['Helmet', 'Gauntlets', 'Chest Armor', 'Leg Armor', 'Class Armor'].includes(it.slot)));
+}
+
 function getActiveChar() {
   const st = getState();
   const chars = st.bungieData?.characters || [];
@@ -240,8 +267,8 @@ async function sendHudVoicePrompt(text) {
             light: c.light,
             subclass: c.subclass?.name || '',
             postmasterCount: (c.postmaster || []).length,
-            equippedWeapons: (c.equipped?.weapons || []).map(w => w.name),
-            equippedArmor: (c.equipped?.armor || []).map(a => a.name),
+            equippedWeapons: getCharEquipped(c).filter(isWeaponItem).map(w => w.name),
+            equippedArmor: getCharEquipped(c).filter(isArmorItem).map(a => a.name),
           })),
         } : null,
       }),
@@ -377,17 +404,17 @@ function auditVaultWeapons() {
 
   const pushW = (w, loc, charId, owner) => {
     if (!w || !w.itemInstanceId) return;
-    if (!['Kinetic', 'Energy', 'Heavy'].includes(w.slot)) return;
+    if (!isWeaponItem(w)) return;
     const fam = String(w.name || '').toLowerCase().replace(/\s*\(adept\)|\s*\(timelost\)|\s*\(harrowed\)/g, '').trim();
     familyCounts.set(fam, (familyCounts.get(fam) || 0) + 1);
     allWeapons.push({ ...w, _loc: loc, _charId: charId, _owner: owner, _fam: fam });
   };
 
   (bData.characters || []).forEach(c => {
-    (c.equipped?.weapons || []).forEach(w => pushW(w, 'equipped', c.characterId, `${c.className} (Eq)`));
-    (c.inventory?.weapons || []).forEach(w => pushW(w, 'character', c.characterId, c.className));
+    getCharEquipped(c).forEach(w => pushW(w, 'equipped', c.characterId, `${c.className} (Eq)`));
+    getCharInventory(c).forEach(w => pushW(w, 'character', c.characterId, c.className));
   });
-  (bData.vault?.weapons || []).forEach(w => pushW(w, 'vault', '', 'Vault'));
+  getVaultItems(bData).forEach(w => pushW(w, 'vault', '', 'Vault'));
 
   // Score every weapon
   const scoreItem = (it) => {
@@ -587,7 +614,7 @@ const CHAMP_COUNTERS = {
 };
 
 function detectChampionCoverage(charObj) {
-  const equippedWeapons = charObj?.equipped?.weapons || [];
+  const equippedWeapons = getCharEquipped(charObj).filter(isWeaponItem);
   const subName = String(charObj?.subclass?.name || '').toLowerCase();
   const subElem = String(charObj?.subclass?.element || '').toLowerCase();
   const artifactPerks = (charObj?.artifact?.perks || []).map(p => String(p.name || p).toLowerCase());
@@ -621,7 +648,7 @@ function detectChampionCoverage(charObj) {
 
 function findVaultCounterWeapon(champKey) {
   const bData = getState().bungieData;
-  const vaultWeapons = bData?.vault?.weapons || [];
+  const vaultWeapons = getVaultItems(bData).filter(isWeaponItem);
   const rule = CHAMP_COUNTERS[champKey];
   if (!rule) return null;
   const exoticHit = vaultWeapons.find(w => rule.exotics.some(ex => String(w.name || '').toLowerCase().includes(ex)));
@@ -671,7 +698,7 @@ function renderActivityPrep() {
   const cov = detectChampionCoverage(activeChar);
   const stats = activeChar.stats || {};
   const healthStat = stats.Health || stats.Resilience || 0;
-  const weapons = activeChar.equipped?.weapons || [];
+  const weapons = getCharEquipped(activeChar).filter(isWeaponItem);
   const heavy = weapons.find(w => w.slot === 'Heavy');
 
   const checks = [];
